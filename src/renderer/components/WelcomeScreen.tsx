@@ -32,7 +32,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectWorkspace }) => {
             <img src={aiIcon} alt="" className="feature-icon" /> AI Assistant powered by Claude
           </div>
           <div className="welcome-feature">
-            <img src={settingsIcon} alt="" className="feature-icon" /> Fast editing with Monaco Editor
+            <img src={settingsIcon} alt="" className="feature-icon" /> Create, use and share document templates
           </div>
         </div>
 
