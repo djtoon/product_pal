@@ -15,6 +15,8 @@ import aiAvatarIcon from '../assets/icons/ai_avatar.svg';
 import workspaceIcon from '../assets/icons/workspace.svg';
 import currentFileIcon from '../assets/icons/current_file.svg';
 import chatIcon from '../assets/icons/chat.svg';
+import sendIcon from '../assets/icons/send.svg';
+import sendCancelIcon from '../assets/icons/send_cancel.svg';
 
 interface AIChatProps {
   isOpen: boolean;
@@ -153,6 +155,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   const [collectedToolResults, setCollectedToolResults] = useState<Array<{ toolUseId: string; result: string; isError?: boolean }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const claudeClientRef = useRef<ClaudeBedrockClient | null>(null);
+  const isCancelledRef = useRef<boolean>(false);
 
   // Update workspace path for file tools
   useEffect(() => {
@@ -189,6 +192,12 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
 
   // Internal handler for Claude responses
   const handleClaudeResponseInternal = useCallback(async (response: { text: string; thinking?: string; toolUse?: ClaudeToolCall; toolUses?: ClaudeToolCall[]; stopReason: string }) => {
+    // Check if cancelled - ignore response if so
+    if (isCancelledRef.current) {
+      console.log('[AIChat] Response ignored - cancelled');
+      return;
+    }
+    
     // Add text response if any
     if (response.text || response.thinking) {
       setMessages(prev => [...prev, {
@@ -214,6 +223,12 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
       const results: Array<{ toolUseId: string; result: string; isError?: boolean }> = [];
       
       for (const tool of toolCalls) {
+        // Check cancellation before each tool
+        if (isCancelledRef.current) {
+          console.log('[AIChat] Tool execution cancelled');
+          return;
+        }
+        
         const toolCall: ToolCall = {
           id: tool.id,
           name: tool.name,
@@ -229,10 +244,19 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
         });
       }
 
+      // Check cancellation before sending results
+      if (isCancelledRef.current) return;
+
       // Send all results together
       if (claudeClientRef.current && results.length > 0) {
-        const nextResponse = await claudeClientRef.current.sendMultipleToolResults(results);
-        await handleClaudeResponseInternal(nextResponse);
+        try {
+          const nextResponse = await claudeClientRef.current.sendMultipleToolResults(results);
+          if (isCancelledRef.current) return;
+          await handleClaudeResponseInternal(nextResponse);
+        } catch (error: any) {
+          if (isCancelledRef.current || error.name === 'AbortError') return;
+          throw error;
+        }
       }
       return;
     }
@@ -259,14 +283,24 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
     tools: Array<{ toolCall: ToolCall; toolUseId: string; autoExecute: boolean }>,
     results: Array<{ toolUseId: string; result: string; isError?: boolean }>
   ) => {
+    // Check if cancelled
+    if (isCancelledRef.current) {
+      console.log('[AIChat] Tool processing cancelled');
+      return;
+    }
+    
     if (tools.length === 0) {
       // All tools processed, send results
       if (results.length > 0 && claudeClientRef.current) {
         setIsLoading(true);
         try {
           const response = await claudeClientRef.current.sendMultipleToolResults(results);
+          // Check again after await
+          if (isCancelledRef.current) return;
           await handleClaudeResponseInternal(response);
         } catch (error: any) {
+          // Ignore abort errors
+          if (isCancelledRef.current || error.name === 'AbortError') return;
           console.error('Error sending tool results:', error);
           setMessages(prev => [...prev, {
             id: Date.now().toString(),
@@ -275,7 +309,9 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
             timestamp: Date.now()
           }]);
         } finally {
-          setIsLoading(false);
+          if (!isCancelledRef.current) {
+            setIsLoading(false);
+          }
         }
       }
       return;
@@ -512,6 +548,9 @@ How can I help you today?`;
       return;
     }
 
+    // Reset cancellation flag for new request
+    isCancelledRef.current = false;
+
     const userMessage: MessageWithTool = {
       id: Date.now().toString(),
       role: 'user',
@@ -531,8 +570,20 @@ How can I help you today?`;
         mcpServers: mcpServers.length > 0 ? mcpServers : undefined
       });
 
+      // Check if cancelled before processing response
+      if (isCancelledRef.current) {
+        console.log('[AIChat] Response ignored - request was cancelled');
+        return;
+      }
+
       await handleClaudeResponse(response);
     } catch (error: any) {
+      // Ignore errors if cancelled (including AbortError)
+      if (isCancelledRef.current || error.name === 'AbortError') {
+        console.log('[AIChat] Request cancelled/aborted');
+        return;
+      }
+      
       console.error('AI Chat error:', error);
       let errorContent = 'Sorry, I encountered an error. ';
       
@@ -551,7 +602,10 @@ How can I help you today?`;
         timestamp: Date.now()
       }]);
     } finally {
-      setIsLoading(false);
+      // Only reset loading if not cancelled (handleStop handles that)
+      if (!isCancelledRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -562,9 +616,50 @@ How can I help you today?`;
     }
   };
 
+  // Stop/cancel the current agent flow and remove last user message
+  const handleStop = () => {
+    if (!isLoading) return;
+    
+    console.log('[AIChat] Stopping current request...');
+    
+    // Set cancellation flag FIRST - this prevents any async operations from continuing
+    isCancelledRef.current = true;
+    
+    // Abort the current API request
+    claudeClientRef.current?.abort();
+    
+    // Remove the last user message from Claude's history
+    claudeClientRef.current?.removeLastMessage();
+    
+    // Remove the last user message from UI
+    setMessages(prev => {
+      // Find the last user message and remove it
+      const lastUserIndex = [...prev].reverse().findIndex(m => m.role === 'user');
+      if (lastUserIndex !== -1) {
+        const indexToRemove = prev.length - 1 - lastUserIndex;
+        return prev.filter((_, i) => i !== indexToRemove);
+      }
+      return prev;
+    });
+    
+    // Clear any pending operations
+    setPendingToolCall(null);
+    setPendingToolCalls([]);
+    setCollectedToolResults([]);
+    
+    // Reset loading state immediately
+    setIsLoading(false);
+    
+    console.log('[AIChat] Request stopped');
+  };
+
   const handleNewChat = () => {
     if (messages.length <= 1 || confirm('Are you sure you want to start a new chat? This will stop the current agent and clear all history.')) {
+      // Set cancellation flag to stop any async operations
+      isCancelledRef.current = true;
+      
       // Stop any running operations
+      claudeClientRef.current?.abort();
       setIsLoading(false);
       
       // Clear Claude history
@@ -701,13 +796,23 @@ How can I help you today?`;
           rows={2}
           disabled={!!pendingToolCall}
         />
-        <button 
-          className="ai-chat-send"
-          onClick={handleSend}
-          disabled={!input.trim() || isLoading || !!pendingToolCall}
-        >
-          {isLoading ? '...' : '➤'}
-        </button>
+        {isLoading ? (
+          <button 
+            className="ai-chat-stop"
+            onClick={handleStop}
+            title="Stop generating"
+          >
+            <img src={sendCancelIcon} alt="Stop" />
+          </button>
+        ) : (
+          <button 
+            className="ai-chat-send"
+            onClick={handleSend}
+            disabled={!input.trim() || !!pendingToolCall}
+          >
+            <img src={sendIcon} alt="Send" />
+          </button>
+        )}
       </div>
 
       {!settings.aiEnabled && (

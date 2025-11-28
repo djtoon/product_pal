@@ -236,6 +236,7 @@ export class ClaudeBedrockClient {
   private conversationHistory: any[] = [];
   private builtInTools: Tool[];
   private mcpTools: MCPToolDefinition[] = [];
+  private abortController: AbortController | null = null;
 
   constructor(config: AIClientConfig) {
     this.client = new BedrockRuntimeClient({
@@ -349,6 +350,9 @@ export class ClaudeBedrockClient {
   }
 
   private async callClaude(): Promise<AIResponse> {
+    // Create new abort controller for this request
+    this.abortController = new AbortController();
+    
     try {
       const allTools = this.getAllTools();
       const command = new ConverseCommand({
@@ -369,7 +373,9 @@ export class ClaudeBedrockClient {
         }
       });
 
-      const response = await this.client.send(command);
+      const response = await this.client.send(command, {
+        abortSignal: this.abortController.signal
+      });
       
       // Process response
       let text = '';
@@ -426,6 +432,21 @@ export class ClaudeBedrockClient {
 
   clearHistory() {
     this.conversationHistory = [];
+  }
+
+  // Abort the current request
+  abort() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  }
+
+  // Remove the last message from history (used when cancelling)
+  removeLastMessage() {
+    if (this.conversationHistory.length > 0) {
+      this.conversationHistory.pop();
+    }
   }
 
   async testConnection(): Promise<boolean> {
