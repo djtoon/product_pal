@@ -1,0 +1,264 @@
+/* Import theme variables */
+@import './themes.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-primary);
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0; /* Important for flex children to shrink properly */
+}
+
+/* Main content area (editor + terminal) */
+.main-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Title Bar styles in TitleBar.css */
+
+/* Sidebar styles in Sidebar.css */
+
+.open-folder-btn {
+  background-color: var(--accent-secondary);
+  color: var(--text-bright);
+  border: none;
+  padding: 8px 16px;
+  margin: 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  -webkit-app-region: no-drag;
+}
+
+.open-folder-btn:hover {
+  background-color: var(--accent-primary-hover);
+}
+
+/* Editor Pane */
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+.editor-tabs {
+  display: flex;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  overflow-x: auto;
+  min-height: 35px;
+  align-items: center;
+}
+
+.editor-tab-action {
+  margin-left: auto;
+  padding: 0 8px;
+}
+
+.preview-toggle-btn {
+  background-color: transparent;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  -webkit-app-region: no-drag;
+}
+
+.preview-toggle-btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.editor-tab {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 13px;
+  background-color: var(--bg-tertiary);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border-primary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.editor-tab.active {
+  background-color: var(--bg-primary);
+  color: var(--text-bright);
+}
+
+.editor-tab:hover {
+  background-color: var(--bg-hover);
+}
+
+.editor-tab-close {
+  margin-left: 8px;
+  opacity: 0.6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.editor-tab-close:hover {
+  opacity: 1;
+}
+
+.editor-content {
+  flex: 1;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+/* Editor Welcome Screen */
+.editor-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--gradient-bg);
+}
+
+.editor-welcome-content {
+  text-align: center;
+  max-width: 500px;
+  padding: 40px;
+}
+
+.editor-welcome-icon {
+  width: 150px;
+  height: 150px;
+  margin-bottom: 24px;
+  opacity: 0.9;
+}
+
+.editor-welcome h1 {
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.editor-welcome-tagline {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.editor-welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.editor-welcome-feature {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.editor-welcome-feature .feature-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 0.7;
+}
+
+.editor-welcome-shortcuts {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.shortcut-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.shortcut-item kbd {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.shortcut-item span {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* Status Bar */
+.status-bar {
+  height: 22px;
+  background-color: var(--statusbar-bg);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--statusbar-text);
+  justify-content: space-between;
+}
+
+.status-bar-left,
+.status-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}

@@ -1,0 +1,171 @@
+.file-tree {
+  user-select: none;
+  height: 100%;
+  overflow: auto;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-tree:focus {
+  outline: none;
+}
+
+.file-tree-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.file-tree-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.1s, opacity 0.2s;
+  box-sizing: border-box;
+}
+
+.file-tree-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.file-tree-item.selected {
+  background-color: var(--bg-active);
+}
+
+.file-tree-item.drag-over {
+  background-color: var(--accent-primary);
+  outline: 2px dashed var(--text-bright);
+  outline-offset: -2px;
+}
+
+.file-tree-item.cut {
+  opacity: 0.5;
+}
+
+.file-icon {
+  margin-right: 6px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-rename-input {
+  background-color: var(--bg-input);
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 2px 4px;
+  outline: none;
+  flex: 1;
+  min-width: 50px;
+}
+
+.new-item-inline {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.new-item-inline .file-icon {
+  margin-right: 6px;
+}
+
+.new-item-inline .file-rename-input {
+  flex: 1;
+}
+
+/* Context Menu */
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.context-menu {
+  position: fixed;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px var(--shadow-primary);
+  z-index: 1000;
+  min-width: 200px;
+  padding: 4px 0;
+}
+
+.context-menu-item {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.context-menu-item:hover {
+  background-color: var(--bg-active);
+}
+
+.context-menu-item.danger {
+  color: #f48771;
+}
+
+.context-menu-item.danger:hover {
+  background-color: #5a1d1d;
+}
+
+.context-menu-shortcut {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.context-menu-item:hover .context-menu-shortcut {
+  color: var(--text-primary);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background-color: var(--border-secondary);
+  margin: 4px 0;
+}
+
+/* React Arborist overrides */
+[role="tree"] {
+  outline: none !important;
+  height: 100% !important;
+}
+
+[role="treeitem"] {
+  outline: none !important;
+}
+
+.file-tree > div {
+  outline: none;
+  height: 100%;
+}

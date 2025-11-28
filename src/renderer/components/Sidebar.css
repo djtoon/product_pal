@@ -1,0 +1,127 @@
+.sidebar {
+  position: relative;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.sidebar-header {
+  padding: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 5px 0;
+  min-height: 0; /* Important for flex to work properly */
+  background-color: var(--bg-secondary);
+}
+
+.sidebar-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* Resize handle */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: ew-resize;
+  background: var(--resize-handle);
+  transition: background-color 0.15s;
+  z-index: 10;
+}
+
+.sidebar-resize-handle:hover {
+  background-color: var(--resize-handle-hover);
+}
+
+.sidebar-resize-handle:active {
+  background-color: var(--resize-handle-hover);
+}
+
+/* New file controls */
+.new-file-controls {
+  padding: 8px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.new-file-input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.new-file-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.new-file-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.new-file-btn {
+  flex: 1;
+  padding: 4px 8px;
+  background-color: var(--accent-secondary);
+  border: none;
+  border-radius: 3px;
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.new-file-btn:hover {
+  background-color: var(--accent-primary-hover);
+}
+
+.new-file-btn.cancel {
+  background-color: var(--bg-input);
+}
+
+.new-file-btn.cancel:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.new-item-btn {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.new-item-btn:hover {
+  background-color: var(--bg-hover);
+}

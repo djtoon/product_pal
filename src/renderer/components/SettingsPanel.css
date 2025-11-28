@@ -1,0 +1,183 @@
+.settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.settings-panel {
+  width: 600px;
+  max-width: 90%;
+  max-height: 90vh;
+  background-color: #2d2d2d;
+  border: 1px solid #454545;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #454545;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #888888;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.settings-close:hover {
+  background-color: #3c3c3c;
+  color: #cccccc;
+}
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-field {
+  margin-bottom: 16px;
+}
+
+.settings-field label {
+  display: block;
+  font-size: 13px;
+  color: #cccccc;
+  margin-bottom: 6px;
+}
+
+.settings-field input[type="text"],
+.settings-field input[type="password"],
+.settings-field select {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #3c3c3c;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.settings-field input[type="text"]:focus,
+.settings-field input[type="password"]:focus,
+.settings-field select:focus {
+  outline: none;
+  border-color: #007acc;
+}
+
+.settings-field input[type="text"]:disabled,
+.settings-field input[type="password"]:disabled,
+.settings-field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-field input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.settings-field label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.settings-note {
+  background-color: #3c3c3c;
+  border-left: 3px solid #007acc;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #cccccc;
+  margin-top: 20px;
+}
+
+.settings-note strong {
+  color: #007acc;
+}
+
+.settings-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #454545;
+}
+
+.settings-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn.primary {
+  background-color: #007acc;
+  color: white;
+}
+
+.settings-btn.primary:hover {
+  background-color: #1177bb;
+}
+
+.settings-btn.secondary {
+  background-color: #3c3c3c;
+  color: #cccccc;
+}
+
+.settings-btn.secondary:hover {
+  background-color: #505050;
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

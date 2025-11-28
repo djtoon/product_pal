@@ -1,0 +1,330 @@
+.mcp-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.mcp-panel {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-secondary);
+  overflow: hidden;
+}
+
+.mcp-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.mcp-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mcp-panel-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mcp-panel-close:hover {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.mcp-panel-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.mcp-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.mcp-panel-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mcp-panel-content::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.mcp-panel-content::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+.mcp-panel-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.mcp-servers-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.mcp-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mcp-section-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-code);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mcp-refresh-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.mcp-refresh-btn:hover {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.mcp-loading {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.mcp-no-servers {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 12px;
+  background-color: var(--bg-primary);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.mcp-servers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-server-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: var(--bg-primary);
+  border-radius: 4px;
+  border-left: 3px solid var(--border-secondary);
+  position: relative;
+}
+
+.mcp-server-reconnect {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.mcp-server-reconnect:hover:not(:disabled) {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.mcp-server-reconnect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mcp-server-item.connected {
+  border-left-color: #4ec9b0;
+}
+
+.mcp-server-item.error {
+  border-left-color: #f48771;
+}
+
+.mcp-server-status {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.mcp-server-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mcp-server-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-server-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.mcp-server-tools-count {
+  font-size: 10px;
+  color: #4ec9b0;
+  background-color: rgba(78, 201, 176, 0.15);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.mcp-server-type {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'Consolas', 'Monaco', monospace;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+.mcp-server-error {
+  font-size: 11px;
+  color: #f48771;
+  margin-top: 2px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.mcp-server-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.mcp-tool-name {
+  font-size: 10px;
+  color: var(--text-code);
+  background-color: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.mcp-tool-more {
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+}
+
+.mcp-editor-section {
+  padding: 16px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mcp-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mcp-unsaved-indicator {
+  font-size: 11px;
+  color: #dcdcaa;
+  font-style: italic;
+}
+
+.mcp-save-btn {
+  padding: 6px 16px;
+  background-color: var(--accent-primary);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mcp-save-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary-hover);
+}
+
+.mcp-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mcp-error {
+  background-color: rgba(244, 135, 113, 0.1);
+  border: 1px solid #f48771;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #f48771;
+}
+
+.mcp-json-editor {
+  flex: 1;
+  min-height: 200px;
+  padding: 12px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.mcp-json-editor:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+

@@ -1,0 +1,128 @@
+.welcome-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-welcome);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.welcome-content {
+  text-align: center;
+  max-width: 600px;
+  padding: 40px;
+}
+
+.welcome-logo {
+  margin-bottom: 24px;
+}
+
+.welcome-icon {
+  width: 150px;
+  height: 150px;
+  display: block;
+  margin: 0 auto 24px auto;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.welcome-logo h1 {
+  font-size: 48px;
+  font-weight: 300;
+  color: var(--text-bright);
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.welcome-tagline {
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-bottom: 40px;
+  font-weight: 300;
+}
+
+.welcome-features {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 48px;
+  flex-wrap: wrap;
+}
+
+.welcome-feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  padding: 12px 20px;
+  background-color: var(--overlay-light);
+  border-radius: 8px;
+  border: 1px solid var(--overlay-light-border);
+}
+
+.welcome-feature span {
+  font-size: 20px;
+}
+
+.welcome-feature .feature-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.9;
+}
+
+.welcome-btn {
+  background: var(--gradient-button);
+  color: var(--text-bright);
+  border: none;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s;
+  box-shadow: 0 4px 16px var(--shadow-accent);
+}
+
+.welcome-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--shadow-accent-hover);
+  background: var(--gradient-button-hover);
+}
+
+.welcome-btn .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.welcome-hint {
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

@@ -1,0 +1,32 @@
+{
+  "appId": "com.collie.app",
+  "productName": "Collie",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": ["nsis", "portable"],
+    "artifactName": "${productName}-${version}-Setup.${ext}",
+    "icon": "assets/icons/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "portable": {
+    "artifactName": "${productName}-${version}-Portable.${ext}"
+  },
+  "mac": {
+    "icon": "assets/icons/icon.icns"
+  },
+  "linux": {
+    "icon": "assets/icons"
+  }
+}
+

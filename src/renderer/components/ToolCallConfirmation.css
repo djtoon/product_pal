@@ -1,0 +1,162 @@
+.tool-call-confirmation {
+  background-color: #2d2d2d;
+  border: 2px solid #007acc;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tool-call-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tool-call-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.tool-call-info {
+  flex: 1;
+}
+
+.tool-call-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #007acc;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.tool-call-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.tool-call-description {
+  font-size: 13px;
+  color: #cccccc;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+}
+
+.tool-call-parameters {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+  border-left: 3px solid #454545;
+}
+
+.tool-params-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888888;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tool-param {
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  margin: 4px 0;
+  display: flex;
+  gap: 8px;
+}
+
+.tool-param-key {
+  color: #9cdcfe;
+  font-weight: 600;
+}
+
+.tool-param.missing .tool-param-value {
+  color: #f48771;
+  font-weight: 600;
+}
+
+.tool-param-value {
+  color: #ce9178;
+  flex: 1;
+  word-break: break-all;
+}
+
+.tool-call-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tool-call-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tool-call-btn.accept {
+  background-color: #0e639c;
+  color: white;
+}
+
+.tool-call-btn.accept:hover {
+  background-color: #1177bb;
+}
+
+.tool-call-btn.deny {
+  background-color: #3c3c3c;
+  color: #cccccc;
+}
+
+.tool-call-btn.deny:hover {
+  background-color: #505050;
+}
+
+.tool-call-error {
+  font-size: 12px;
+  color: #f48771;
+  text-align: center;
+  padding: 10px;
+  background-color: #5a1d1d;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid #f48771;
+}
+
+.tool-call-warning {
+  font-size: 11px;
+  color: #dcdcaa;
+  text-align: center;
+  padding: 6px;
+  background-color: #3c2a1a;
+  border-radius: 4px;
+}
+

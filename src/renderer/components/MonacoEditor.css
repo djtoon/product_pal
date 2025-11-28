@@ -1,0 +1,52 @@
+.monaco-editor-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+.editor-context-menu {
+  position: fixed;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 10000;
+}
+
+.context-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  cursor: pointer;
+  color: #cccccc;
+  font-size: 13px;
+}
+
+.context-menu-item:hover {
+  background: #094771;
+  color: #ffffff;
+}
+
+.context-menu-label {
+  flex: 1;
+}
+
+.context-menu-shortcut {
+  margin-left: 24px;
+  color: #888888;
+  font-size: 12px;
+}
+
+.context-menu-item:hover .context-menu-shortcut {
+  color: #aaaaaa;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: #454545;
+  margin: 4px 8px;
+}
+
