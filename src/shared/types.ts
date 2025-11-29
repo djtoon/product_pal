@@ -17,3 +17,8 @@ export interface AppState {
   workspacePath: string | null;
 }
 
+export interface Stakeholder {
+  id: string;
+  name: string;
+  role: string;
+}

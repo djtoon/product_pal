@@ -6,6 +6,7 @@ import newFileIcon from '../assets/icons/newfile.svg';
 import chatIcon from '../assets/icons/chat.svg';
 import settingsIcon from '../assets/icons/settings.svg';
 import mcpIcon from '../assets/icons/mcp.svg';
+import stakeholdersIcon from '../assets/icons/people.svg';
 
 interface IconSidebarProps {
   onOpenSettings: () => void;
@@ -13,6 +14,7 @@ interface IconSidebarProps {
   onNewDocument: () => void;
   onOpenMCP: () => void;
   onToggleTerminal: () => void;
+  onOpenStakeholders: () => void;
   aiEnabled: boolean;
   isAIChatOpen: boolean;
   isTerminalOpen: boolean;
@@ -25,6 +27,7 @@ const IconSidebar: React.FC<IconSidebarProps> = ({
   onNewDocument,
   onOpenMCP,
   onToggleTerminal,
+  onOpenStakeholders,
   aiEnabled,
   isAIChatOpen,
   isTerminalOpen,
@@ -81,6 +84,14 @@ const IconSidebar: React.FC<IconSidebarProps> = ({
               <line x1="12" y1="19" x2="20" y2="19"></line>
             </svg>
           </span>
+        </button>
+
+        <button 
+          className="icon-sidebar-btn" 
+          onClick={onOpenStakeholders}
+          title="Stakeholders"
+        >
+          <span className="icon"><img src={stakeholdersIcon} alt="Stakeholders" /></span>
         </button>
 
         <button 

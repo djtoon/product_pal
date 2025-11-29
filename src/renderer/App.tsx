@@ -12,8 +12,10 @@ import WelcomeScreen from './components/WelcomeScreen';
 import FileNameDialog from './components/FileNameDialog';
 import MCPPanel from './components/MCPPanel';
 import TerminalPanel from './components/TerminalPanel';
+import StakeholdersPanel from './components/StakeholdersPanel';
 import './styles/App.css';
 import { AppSettings, DEFAULT_SETTINGS } from '../shared/settings';
+import { Stakeholder } from '../shared/types';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -31,6 +33,8 @@ const AppContent: React.FC = () => {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isMCPPanelOpen, setIsMCPPanelOpen] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isStakeholdersPanelOpen, setIsStakeholdersPanelOpen] = useState(false);
+  const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [mcpStatus, setMcpStatus] = useState<'connected' | 'disconnected' | 'error' | 'loading'>('disconnected');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isFileNameDialogOpen, setIsFileNameDialogOpen] = useState(false);
@@ -70,7 +74,20 @@ const AppContent: React.FC = () => {
       }
     };
 
+    // Load stakeholders
+    const loadStakeholders = async () => {
+      try {
+        const saved = await ipcRenderer.invoke('stakeholders:load');
+        if (saved) {
+          setStakeholders(saved);
+        }
+      } catch (error) {
+        console.error('Error loading stakeholders:', error);
+      }
+    };
+
     initTemplates();
+    loadStakeholders();
   }, []);
 
   useEffect(() => {
@@ -480,6 +497,7 @@ const AppContent: React.FC = () => {
             onNewDocument={handleNewDocument}
             onOpenMCP={() => setIsMCPPanelOpen(true)}
             onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+            onOpenStakeholders={() => setIsStakeholdersPanelOpen(true)}
             aiEnabled={settings.aiEnabled}
             isAIChatOpen={isAIChatOpen}
             isTerminalOpen={isTerminalOpen}
@@ -500,6 +518,7 @@ const AppContent: React.FC = () => {
             settings={settings}
             workspacePath={workspacePath}
             currentFile={currentFile}
+            stakeholders={stakeholders}
           />
         </div>
         <StatusBar />
@@ -540,6 +559,12 @@ const AppContent: React.FC = () => {
         isOpen={isMCPPanelOpen}
         onClose={() => setIsMCPPanelOpen(false)}
         workspacePath={workspacePath}
+      />
+
+      <StakeholdersPanel
+        isOpen={isStakeholdersPanelOpen}
+        onClose={() => setIsStakeholdersPanelOpen(false)}
+        onStakeholdersChange={setStakeholders}
       />
     </>
   );

@@ -10,6 +10,11 @@ const getSettingsPath = () => {
   return path.join(app.getPath('userData'), 'settings.json');
 };
 
+// Get stakeholders file path in user data directory
+const getStakeholdersPath = () => {
+  return path.join(app.getPath('userData'), 'stakeholders.json');
+};
+
 // Get templates directory path (in app folder)
 const getTemplatesPath = () => {
   // Use app directory for templates (works in dev and production)
@@ -232,6 +237,34 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
         return null;
       }
       console.error('Error loading settings:', error);
+      throw error;
+    }
+  });
+
+  // Save stakeholders to file
+  ipcMain.handle('stakeholders:save', async (event, stakeholders: any[]) => {
+    try {
+      const stakeholdersPath = getStakeholdersPath();
+      await fs.writeFile(stakeholdersPath, JSON.stringify(stakeholders, null, 2), 'utf-8');
+      return true;
+    } catch (error) {
+      console.error('Error saving stakeholders:', error);
+      throw error;
+    }
+  });
+
+  // Load stakeholders from file
+  ipcMain.handle('stakeholders:load', async () => {
+    try {
+      const stakeholdersPath = getStakeholdersPath();
+      const content = await fs.readFile(stakeholdersPath, 'utf-8');
+      return JSON.parse(content);
+    } catch (error: any) {
+      // Return empty array if file doesn't exist
+      if (error.code === 'ENOENT') {
+        return [];
+      }
+      console.error('Error loading stakeholders:', error);
       throw error;
     }
   });

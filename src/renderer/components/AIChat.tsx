@@ -7,6 +7,7 @@ import { fileSystemTools, ToolResult, TodoItem } from '../services/fileSystemToo
 import ToolCallConfirmation, { ToolCall } from './ToolCallConfirmation';
 import TodoListPanel from './TodoListPanel';
 import systemPromptMd from '../system_prompt.md';
+import { Stakeholder } from '../../shared/types';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -24,6 +25,7 @@ interface AIChatProps {
   settings: any;
   workspacePath: string | null;
   currentFile?: { path: string; content: string } | null;
+  stakeholders?: Stakeholder[];
 }
 
 // Thinking text component - shows reasoning in darker grey
@@ -63,13 +65,19 @@ interface MessageWithTool extends ChatMessage {
   thinking?: string;
 }
 
-const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePath, currentFile }) => {
+const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePath, currentFile, stakeholders = [] }) => {
   const [messages, setMessages] = useState<MessageWithTool[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [width, setWidth] = useState(400);
   const [todos, setTodos] = useState<TodoItem[]>([]);
   const [mcpServers, setMcpServers] = useState<string[]>([]);
+  const [includeAllStakeholders, setIncludeAllStakeholders] = useState(false);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionCursorPos, setMentionCursorPos] = useState<number | null>(null);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const isResizing = useRef(false);
 
   // Connect to MCP servers and load tools when workspace changes
@@ -381,8 +389,8 @@ How can I help you today?`;
     }
   }, [settings.aiEnabled, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel]);
 
-  // Todo tools that auto-execute without user permission
-  const AUTO_EXECUTE_TOOLS = ['create_todo_list', 'update_todo', 'read_todo_list'];
+  // Tools that auto-execute without user permission
+  const AUTO_EXECUTE_TOOLS = ['create_todo_list', 'update_todo', 'read_todo_list', 'read_templates'];
 
   const isAutoExecuteTool = (toolName: string): boolean => {
     // MCP tools should NOT auto-execute
@@ -551,20 +559,36 @@ How can I help you today?`;
     // Reset cancellation flag for new request
     isCancelledRef.current = false;
 
+    // Parse @mentions from input
+    const { cleanedText, mentionedStakeholders } = parseStakeholderContext(input);
+    
+    // Determine which stakeholders to include
+    let stakeholdersToInclude: Stakeholder[] = [];
+    if (includeAllStakeholders) {
+      stakeholdersToInclude = stakeholders;
+    } else if (mentionedStakeholders.length > 0) {
+      stakeholdersToInclude = mentionedStakeholders;
+    }
+
+    // Build the message with stakeholder context
+    const stakeholderContext = buildStakeholderContextString(stakeholdersToInclude);
+    const messageToSend = stakeholderContext + cleanedText;
+
     const userMessage: MessageWithTool = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: input, // Show original input in UI
       timestamp: Date.now()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    setShowMentionDropdown(false);
     setIsLoading(true);
 
     try {
-      // Send message with context including MCP servers
-      const response = await claudeClientRef.current.sendMessage(input, {
+      // Send message with context including MCP servers and stakeholders
+      const response = await claudeClientRef.current.sendMessage(messageToSend, {
         workspacePath: workspacePath || undefined,
         currentFile: currentFile?.path,
         mcpServers: mcpServers.length > 0 ? mcpServers : undefined
@@ -614,6 +638,115 @@ How can I help you today?`;
       e.preventDefault();
       handleSend();
     }
+  };
+
+  // Get filtered stakeholders for mention dropdown
+  const filteredStakeholders = stakeholders.filter(s => 
+    s.name.toLowerCase().includes(mentionFilter.toLowerCase())
+  );
+
+  // Handle input change with @mention detection
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setInput(value);
+
+    // Check if we're typing a mention
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      // Only show dropdown if there's no space after @ and it's either at start or after a space
+      const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+      
+      if ((charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0) && 
+          !textAfterAt.includes(' ') && !textAfterAt.includes('\n')) {
+        setShowMentionDropdown(true);
+        setMentionFilter(textAfterAt);
+        setMentionCursorPos(lastAtIndex);
+        setSelectedMentionIndex(0);
+        return;
+      }
+    }
+    
+    setShowMentionDropdown(false);
+    setMentionFilter('');
+    setMentionCursorPos(null);
+  };
+
+  // Handle keyboard navigation in mention dropdown
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showMentionDropdown || filteredStakeholders.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedMentionIndex(prev => 
+        prev < filteredStakeholders.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedMentionIndex(prev => 
+        prev > 0 ? prev - 1 : filteredStakeholders.length - 1
+      );
+    } else if (e.key === 'Enter' && showMentionDropdown) {
+      e.preventDefault();
+      selectMention(filteredStakeholders[selectedMentionIndex]);
+    } else if (e.key === 'Escape') {
+      setShowMentionDropdown(false);
+    } else if (e.key === 'Tab' && showMentionDropdown) {
+      e.preventDefault();
+      selectMention(filteredStakeholders[selectedMentionIndex]);
+    }
+  };
+
+  // Select a stakeholder from dropdown
+  const selectMention = (stakeholder: Stakeholder) => {
+    if (mentionCursorPos === null) return;
+
+    const beforeMention = input.substring(0, mentionCursorPos);
+    const afterMention = input.substring(mentionCursorPos + mentionFilter.length + 1);
+    const newInput = `${beforeMention}@[${stakeholder.name}]${afterMention}`;
+    
+    setInput(newInput);
+    setShowMentionDropdown(false);
+    setMentionFilter('');
+    setMentionCursorPos(null);
+    
+    // Focus back to input
+    setTimeout(() => {
+      if (inputRef.current) {
+        const newPos = beforeMention.length + stakeholder.name.length + 3; // @[name]
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
+
+  // Parse @mentions from input and build stakeholder context
+  const parseStakeholderContext = (text: string): { cleanedText: string; mentionedStakeholders: Stakeholder[] } => {
+    const mentionRegex = /@\[([^\]]+)\]/g;
+    const mentionedNames: string[] = [];
+    let match;
+    
+    while ((match = mentionRegex.exec(text)) !== null) {
+      mentionedNames.push(match[1]);
+    }
+
+    const mentioned = stakeholders.filter(s => mentionedNames.includes(s.name));
+    
+    // Remove @[Name] tags from text, keeping just the name for readability
+    const cleanedText = text.replace(/@\[([^\]]+)\]/g, '@$1');
+    
+    return { cleanedText, mentionedStakeholders: mentioned };
+  };
+
+  // Build stakeholder context string for AI
+  const buildStakeholderContextString = (stakeholderList: Stakeholder[]): string => {
+    if (stakeholderList.length === 0) return '';
+    
+    const stakeholderLines = stakeholderList.map(s => `- ${s.name} (${s.role})`).join('\n');
+    return `[Stakeholders in this request:\n${stakeholderLines}]\n\n`;
   };
 
   // Stop/cancel the current agent flow and remove last user message
@@ -786,16 +919,53 @@ How can I help you today?`;
 
       <TodoListPanel todos={todos} />
 
+      {/* Stakeholder options bar */}
+      {stakeholders.length > 0 && (
+        <div className="ai-stakeholder-bar">
+          <label className="ai-stakeholder-checkbox">
+            <input
+              type="checkbox"
+              checked={includeAllStakeholders}
+              onChange={(e) => setIncludeAllStakeholders(e.target.checked)}
+            />
+            <span>Include all stakeholders ({stakeholders.length})</span>
+          </label>
+          <span className="ai-stakeholder-hint">Type @ to mention</span>
+        </div>
+      )}
+
       <div className="ai-chat-input-container">
-        <textarea
-          className="ai-chat-input"
-          placeholder="Ask me anything... (Shift+Enter for new line)"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          rows={2}
-          disabled={!!pendingToolCall}
-        />
+        <div className="ai-chat-input-wrapper">
+          <textarea
+            ref={inputRef}
+            className="ai-chat-input"
+            placeholder={stakeholders.length > 0 ? "Ask me anything... (@ to mention stakeholders)" : "Ask me anything... (Shift+Enter for new line)"}
+            value={input}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            onKeyDown={handleInputKeyDown}
+            rows={2}
+            disabled={!!pendingToolCall}
+          />
+          
+          {/* @Mention dropdown */}
+          {showMentionDropdown && filteredStakeholders.length > 0 && (
+            <div className="mention-dropdown">
+              {filteredStakeholders.map((stakeholder, index) => (
+                <div
+                  key={stakeholder.id}
+                  className={`mention-item ${index === selectedMentionIndex ? 'selected' : ''}`}
+                  onClick={() => selectMention(stakeholder)}
+                  onMouseEnter={() => setSelectedMentionIndex(index)}
+                >
+                  <span className="mention-name">{stakeholder.name}</span>
+                  <span className="mention-role">{stakeholder.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
         {isLoading ? (
           <button 
             className="ai-chat-stop"

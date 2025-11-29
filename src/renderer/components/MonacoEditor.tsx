@@ -37,10 +37,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ value, language, onChange, 
     });
 
     // Ensure clipboard shortcuts work - override to use system clipboard
+    // Only run when editor text has focus (not find widget or other inputs)
     editor.addAction({
       id: 'editor-copy',
       label: 'Copy',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC],
+      precondition: 'editorTextFocus',
       run: async (ed: any) => {
         const selection = ed.getSelection();
         const selectedText = ed.getModel()?.getValueInRange(selection);
@@ -54,6 +56,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ value, language, onChange, 
       id: 'editor-cut',
       label: 'Cut',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX],
+      precondition: 'editorTextFocus',
       run: async (ed: any) => {
         const selection = ed.getSelection();
         const selectedText = ed.getModel()?.getValueInRange(selection);
@@ -68,6 +71,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ value, language, onChange, 
       id: 'editor-paste',
       label: 'Paste',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
+      precondition: 'editorTextFocus',
       run: async (ed: any) => {
         const text = await navigator.clipboard.readText();
         const selection = ed.getSelection();
