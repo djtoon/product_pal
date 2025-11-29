@@ -20,6 +20,7 @@ interface KanbanColumn {
 interface KanbanEditorProps {
   content: string;
   onChange: (content: string) => void;
+  onSave?: () => void;
 }
 
 // Generate unique ID
@@ -136,7 +137,7 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   none: 'transparent'
 };
 
-const KanbanEditor: React.FC<KanbanEditorProps> = ({ content, onChange }) => {
+const KanbanEditor: React.FC<KanbanEditorProps> = ({ content, onChange, onSave }) => {
   const [boardTitle, setBoardTitle] = useState('Kanban Board');
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [draggedCard, setDraggedCard] = useState<{ card: KanbanCard; columnId: string } | null>(null);
@@ -147,6 +148,23 @@ const KanbanEditor: React.FC<KanbanEditorProps> = ({ content, onChange }) => {
   const [showNewColumnInput, setShowNewColumnInput] = useState(false);
   
   const initialParseRef = useRef(false);
+
+  // Handle Ctrl+S to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (onSave) {
+          onSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onSave]);
 
   // Parse content on mount and when content changes externally
   useEffect(() => {

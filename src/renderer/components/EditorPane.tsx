@@ -123,6 +123,7 @@ const EditorPane: React.FC = () => {
             <KanbanEditor
               content={currentFile.content}
               onChange={handleEditorChange}
+              onSave={saveCurrentFile}
             />
           ) : showPreview && isMarkdownFile ? (
             <SplitPane
