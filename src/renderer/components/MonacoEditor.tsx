@@ -36,48 +36,89 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ value, language, onChange, 
       }
     });
 
-    // Ensure clipboard shortcuts work - override to use system clipboard
-    // Only run when editor text has focus (not find widget or other inputs)
-    editor.addAction({
-      id: 'editor-copy',
-      label: 'Copy',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC],
-      precondition: 'editorTextFocus',
-      run: async (ed: any) => {
-        const selection = ed.getSelection();
-        const selectedText = ed.getModel()?.getValueInRange(selection);
+    // Clipboard operations - use addCommand with editorTextFocus precondition
+    // This ensures they only run in the main editor, not in find widget input
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC,
+      async () => {
+        const selection = editor.getSelection();
+        const selectedText = editor.getModel()?.getValueInRange(selection);
         if (selectedText) {
           await navigator.clipboard.writeText(selectedText);
         }
-      }
-    });
+      },
+      'editorTextFocus'
+    );
 
-    editor.addAction({
-      id: 'editor-cut',
-      label: 'Cut',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX],
-      precondition: 'editorTextFocus',
-      run: async (ed: any) => {
-        const selection = ed.getSelection();
-        const selectedText = ed.getModel()?.getValueInRange(selection);
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX,
+      async () => {
+        const selection = editor.getSelection();
+        const selectedText = editor.getModel()?.getValueInRange(selection);
         if (selectedText) {
           await navigator.clipboard.writeText(selectedText);
-          ed.executeEdits('', [{ range: selection, text: '' }]);
+          editor.executeEdits('', [{ range: selection, text: '' }]);
         }
-      }
-    });
+      },
+      'editorTextFocus'
+    );
 
-    editor.addAction({
-      id: 'editor-paste',
-      label: 'Paste',
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
-      precondition: 'editorTextFocus',
-      run: async (ed: any) => {
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV,
+      async () => {
         const text = await navigator.clipboard.readText();
-        const selection = ed.getSelection();
-        ed.executeEdits('', [{ range: selection, text }]);
-      }
-    });
+        const selection = editor.getSelection();
+        editor.executeEdits('', [{ range: selection, text }]);
+      },
+      'editorTextFocus'
+    );
+
+    // Handle clipboard for find widget inputs
+    const editorDom = editor.getDomNode();
+    if (editorDom) {
+      editorDom.addEventListener('keydown', async (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+        
+        if (isInput && (e.ctrlKey || e.metaKey)) {
+          if (e.key === 'v' || e.key === 'V') {
+            e.preventDefault();
+            e.stopPropagation();
+            const text = await navigator.clipboard.readText();
+            const inputEl = target as HTMLInputElement;
+            const start = inputEl.selectionStart || 0;
+            const end = inputEl.selectionEnd || 0;
+            const value = inputEl.value;
+            inputEl.value = value.slice(0, start) + text + value.slice(end);
+            inputEl.selectionStart = inputEl.selectionEnd = start + text.length;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          } else if (e.key === 'c' || e.key === 'C') {
+            e.preventDefault();
+            e.stopPropagation();
+            const inputEl = target as HTMLInputElement;
+            const start = inputEl.selectionStart || 0;
+            const end = inputEl.selectionEnd || 0;
+            const selectedText = inputEl.value.slice(start, end);
+            if (selectedText) {
+              await navigator.clipboard.writeText(selectedText);
+            }
+          } else if (e.key === 'x' || e.key === 'X') {
+            e.preventDefault();
+            e.stopPropagation();
+            const inputEl = target as HTMLInputElement;
+            const start = inputEl.selectionStart || 0;
+            const end = inputEl.selectionEnd || 0;
+            const selectedText = inputEl.value.slice(start, end);
+            if (selectedText) {
+              await navigator.clipboard.writeText(selectedText);
+              inputEl.value = inputEl.value.slice(0, start) + inputEl.value.slice(end);
+              inputEl.selectionStart = inputEl.selectionEnd = start;
+              inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }
+        }
+      }, true);
+    }
 
     // Focus the editor
     editor.focus();
