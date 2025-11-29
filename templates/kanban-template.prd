@@ -1,0 +1,22 @@
+# [KANBAN] Project Board
+
+## Backlog
+- [ ] **Research & Discovery** | priority:high
+  Gather requirements and analyze user needs
+- [ ] **Design Mockups** | priority:medium
+  Create wireframes and visual designs
+- [ ] **Technical Architecture** | priority:high
+  Define system architecture and tech stack
+
+## In Progress
+- [ ] **Feature Development** | priority:high
+  Implement core functionality
+
+## Review
+- [ ] **Code Review** | priority:medium
+  Review and approve pull requests
+
+## Done
+- [x] **Project Setup** | priority:low
+  Initialize repository and development environment
+

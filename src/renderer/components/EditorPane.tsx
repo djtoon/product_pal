@@ -3,6 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import MonacoEditor from './MonacoEditor';
 import MarkdownPreview from './MarkdownPreview';
 import SplitPane from './SplitPane';
+import KanbanEditor from './KanbanEditor';
 import { EditorFile } from '../../shared/types';
 
 // Import icons
@@ -23,6 +24,9 @@ const EditorPane: React.FC = () => {
 
   const isMarkdownFile = currentFile?.path.toLowerCase().endsWith('.md') || 
                          currentFile?.path.toLowerCase().endsWith('.prd');
+
+  // Detect if file is a Kanban document by checking for [KANBAN] header
+  const isKanbanDocument = currentFile?.content?.match(/^#\s*\[KANBAN\]/m) !== null;
 
   const saveCurrentFile = useCallback(async () => {
     const file = currentFileRef.current;
@@ -96,7 +100,7 @@ const EditorPane: React.FC = () => {
               </span>
             </div>
           ))}
-          {isMarkdownFile && (
+          {isMarkdownFile && !isKanbanDocument && (
             <div className="editor-tab-action">
               <button
                 className="preview-toggle-btn"
@@ -115,7 +119,12 @@ const EditorPane: React.FC = () => {
       )}
       <div className="editor-content">
         {currentFile ? (
-          showPreview && isMarkdownFile ? (
+          isKanbanDocument ? (
+            <KanbanEditor
+              content={currentFile.content}
+              onChange={handleEditorChange}
+            />
+          ) : showPreview && isMarkdownFile ? (
             <SplitPane
               left={
                 <MonacoEditor

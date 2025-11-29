@@ -56,19 +56,25 @@ export function createMenu(mainWindow: BrowserWindow): Menu {
         {
           label: 'New PRD',
           click: () => {
-            mainWindow.webContents.send('menu:newTemplate', 'prd');
+            mainWindow.webContents.send('menu:newTemplate', 'prd-template');
           }
         },
         {
           label: 'New Tech Spec',
           click: () => {
-            mainWindow.webContents.send('menu:newTemplate', 'tech-spec');
+            mainWindow.webContents.send('menu:newTemplate', 'tech-spec-template');
           }
         },
         {
           label: 'New User Story',
           click: () => {
-            mainWindow.webContents.send('menu:newTemplate', 'user-story');
+            mainWindow.webContents.send('menu:newTemplate', 'user-story-template');
+          }
+        },
+        {
+          label: 'New Kanban Board',
+          click: () => {
+            mainWindow.webContents.send('menu:newTemplate', 'kanban-template');
           }
         },
         { type: 'separator' },
