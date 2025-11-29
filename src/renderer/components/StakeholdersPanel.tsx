@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './StakeholdersPanel.css';
 import { Stakeholder } from '../../shared/types';
 import peopleIcon from '../assets/icons/people.svg';
+import editIcon from '../assets/icons/edit.svg';
+import deleteIcon from '../assets/icons/delete.svg';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -211,14 +213,14 @@ const StakeholdersPanel: React.FC<StakeholdersPanelProps> = ({ isOpen, onClose, 
                             onClick={() => handleStartEdit(stakeholder)}
                             title="Edit"
                           >
-                            ✏️
+                            <img src={editIcon} alt="Edit" />
                           </button>
                           <button 
                             className="stakeholder-action-btn delete"
                             onClick={() => handleDelete(stakeholder.id)}
                             title="Delete"
                           >
-                            🗑️
+                            <img src={deleteIcon} alt="Delete" />
                           </button>
                         </div>
                       </>

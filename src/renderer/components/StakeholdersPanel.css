@@ -161,9 +161,16 @@
   cursor: pointer;
   padding: 6px 8px;
   border-radius: 4px;
-  font-size: 14px;
   opacity: 0.6;
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stakeholder-action-btn img {
+  width: 16px;
+  height: 16px;
 }
 
 .stakeholder-action-btn:hover {
