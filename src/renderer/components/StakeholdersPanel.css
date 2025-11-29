@@ -41,8 +41,10 @@
   gap: 10px;
 }
 
-.stakeholders-header h2::before {
-  content: '👥';
+.stakeholders-icon {
+  width: 22px;
+  height: 22px;
+  opacity: 0.9;
 }
 
 .stakeholders-close {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './StakeholdersPanel.css';
 import { Stakeholder } from '../../shared/types';
+import peopleIcon from '../assets/icons/people.svg';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -118,7 +119,10 @@ const StakeholdersPanel: React.FC<StakeholdersPanelProps> = ({ isOpen, onClose, 
     <div className="stakeholders-overlay" onClick={onClose}>
       <div className="stakeholders-panel" onClick={(e) => e.stopPropagation()}>
         <div className="stakeholders-header">
-          <h2>Stakeholders</h2>
+          <h2>
+            <img src={peopleIcon} alt="" className="stakeholders-icon" />
+            Stakeholders
+          </h2>
           <button className="stakeholders-close" onClick={onClose}>×</button>
         </div>
 
