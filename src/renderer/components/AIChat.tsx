@@ -19,6 +19,22 @@ import chatIcon from '../assets/icons/chat.svg';
 import sendIcon from '../assets/icons/send.svg';
 import sendCancelIcon from '../assets/icons/send_cancel.svg';
 
+// Template interface
+interface Template {
+  id: string;
+  name: string;
+  filename: string;
+}
+
+// Template command descriptions for the AI
+const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+  'prd-template': 'Product Requirements Document - detailed product specification',
+  'tech-spec-template': 'Technical Specification - architecture and implementation details',
+  'user-story-template': 'User Story - agile user story format with acceptance criteria',
+  'kanban-template': 'Kanban Board - visual project board with columns and cards',
+  'timeline-template': 'Timeline - project timeline with phases and milestones',
+};
+
 interface AIChatProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,6 +42,7 @@ interface AIChatProps {
   workspacePath: string | null;
   currentFile?: { path: string; content: string } | null;
   stakeholders?: Stakeholder[];
+  templates?: Template[];
 }
 
 // Thinking text component - shows reasoning in darker grey
@@ -65,7 +82,7 @@ interface MessageWithTool extends ChatMessage {
   thinking?: string;
 }
 
-const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePath, currentFile, stakeholders = [] }) => {
+const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePath, currentFile, stakeholders = [], templates = [] }) => {
   const [messages, setMessages] = useState<MessageWithTool[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -77,6 +94,11 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionCursorPos, setMentionCursorPos] = useState<number | null>(null);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  // Slash command state
+  const [showCommandDropdown, setShowCommandDropdown] = useState(false);
+  const [commandFilter, setCommandFilter] = useState('');
+  const [commandCursorPos, setCommandCursorPos] = useState<number | null>(null);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isResizing = useRef(false);
 
@@ -560,7 +582,10 @@ How can I help you today?`;
     isCancelledRef.current = false;
 
     // Parse @mentions from input
-    const { cleanedText, mentionedStakeholders } = parseStakeholderContext(input);
+    const { cleanedText: textAfterMentions, mentionedStakeholders } = parseStakeholderContext(input);
+    
+    // Parse /template commands from input
+    const { cleanedText, requestedTemplates } = parseTemplateCommands(textAfterMentions);
     
     // Determine which stakeholders to include
     let stakeholdersToInclude: Stakeholder[] = [];
@@ -570,9 +595,10 @@ How can I help you today?`;
       stakeholdersToInclude = mentionedStakeholders;
     }
 
-    // Build the message with stakeholder context
+    // Build the message with stakeholder and template context
     const stakeholderContext = buildStakeholderContextString(stakeholdersToInclude);
-    const messageToSend = stakeholderContext + cleanedText;
+    const templateContext = buildTemplateContextString(requestedTemplates);
+    const messageToSend = templateContext + stakeholderContext + cleanedText;
 
     const userMessage: MessageWithTool = {
       id: Date.now().toString(),
@@ -584,6 +610,7 @@ How can I help you today?`;
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setShowMentionDropdown(false);
+    setShowCommandDropdown(false);
     setIsLoading(true);
 
     try {
@@ -645,14 +672,44 @@ How can I help you today?`;
     s.name.toLowerCase().includes(mentionFilter.toLowerCase())
   );
 
-  // Handle input change with @mention detection
+  // Get filtered templates for command dropdown
+  const filteredTemplates = templates.filter(t => 
+    t.name.toLowerCase().includes(commandFilter.toLowerCase()) ||
+    t.id.toLowerCase().includes(commandFilter.toLowerCase())
+  );
+
+  // Handle input change with @mention and /command detection
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart;
     setInput(value);
 
-    // Check if we're typing a mention
     const textBeforeCursor = value.substring(0, cursorPos);
+
+    // Check if we're typing a slash command
+    const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+    if (lastSlashIndex !== -1) {
+      const textAfterSlash = textBeforeCursor.substring(lastSlashIndex + 1);
+      // Only show dropdown if there's no space after / and it's either at start or after a space
+      const charBeforeSlash = lastSlashIndex > 0 ? textBeforeCursor[lastSlashIndex - 1] : ' ';
+      
+      if ((charBeforeSlash === ' ' || charBeforeSlash === '\n' || lastSlashIndex === 0) && 
+          !textAfterSlash.includes(' ') && !textAfterSlash.includes('\n')) {
+        setShowCommandDropdown(true);
+        setCommandFilter(textAfterSlash);
+        setCommandCursorPos(lastSlashIndex);
+        setSelectedCommandIndex(0);
+        // Hide mention dropdown if showing
+        setShowMentionDropdown(false);
+        return;
+      }
+    }
+    
+    setShowCommandDropdown(false);
+    setCommandFilter('');
+    setCommandCursorPos(null);
+
+    // Check if we're typing a mention
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
@@ -675,29 +732,77 @@ How can I help you today?`;
     setMentionCursorPos(null);
   };
 
-  // Handle keyboard navigation in mention dropdown
+  // Handle keyboard navigation in dropdowns
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!showMentionDropdown || filteredStakeholders.length === 0) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedMentionIndex(prev => 
-        prev < filteredStakeholders.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedMentionIndex(prev => 
-        prev > 0 ? prev - 1 : filteredStakeholders.length - 1
-      );
-    } else if (e.key === 'Enter' && showMentionDropdown) {
-      e.preventDefault();
-      selectMention(filteredStakeholders[selectedMentionIndex]);
-    } else if (e.key === 'Escape') {
-      setShowMentionDropdown(false);
-    } else if (e.key === 'Tab' && showMentionDropdown) {
-      e.preventDefault();
-      selectMention(filteredStakeholders[selectedMentionIndex]);
+    // Handle command dropdown navigation
+    if (showCommandDropdown && filteredTemplates.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedCommandIndex(prev => 
+          prev < filteredTemplates.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedCommandIndex(prev => 
+          prev > 0 ? prev - 1 : filteredTemplates.length - 1
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        selectCommand(filteredTemplates[selectedCommandIndex]);
+      } else if (e.key === 'Escape') {
+        setShowCommandDropdown(false);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        selectCommand(filteredTemplates[selectedCommandIndex]);
+      }
+      return;
     }
+
+    // Handle mention dropdown navigation
+    if (showMentionDropdown && filteredStakeholders.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev < filteredStakeholders.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev > 0 ? prev - 1 : filteredStakeholders.length - 1
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        selectMention(filteredStakeholders[selectedMentionIndex]);
+      } else if (e.key === 'Escape') {
+        setShowMentionDropdown(false);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        selectMention(filteredStakeholders[selectedMentionIndex]);
+      }
+    }
+  };
+
+  // Select a template command from dropdown
+  const selectCommand = (template: Template) => {
+    if (commandCursorPos === null) return;
+
+    const beforeCommand = input.substring(0, commandCursorPos);
+    const afterCommand = input.substring(commandCursorPos + commandFilter.length + 1);
+    const newInput = `${beforeCommand}/[${template.id}]${afterCommand}`;
+    
+    setInput(newInput);
+    setShowCommandDropdown(false);
+    setCommandFilter('');
+    setCommandCursorPos(null);
+    
+    // Focus back to input
+    setTimeout(() => {
+      if (inputRef.current) {
+        const newPos = beforeCommand.length + template.id.length + 3; // /[id]
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
   };
 
   // Select a stakeholder from dropdown
@@ -739,6 +844,39 @@ How can I help you today?`;
     const cleanedText = text.replace(/@\[([^\]]+)\]/g, '@$1');
     
     return { cleanedText, mentionedStakeholders: mentioned };
+  };
+
+  // Parse /[template] commands from input and build template context
+  const parseTemplateCommands = (text: string): { cleanedText: string; requestedTemplates: Template[] } => {
+    const commandRegex = /\/\[([^\]]+)\]/g;
+    const templateIds: string[] = [];
+    let match;
+    
+    while ((match = commandRegex.exec(text)) !== null) {
+      templateIds.push(match[1]);
+    }
+
+    const requested = templates.filter(t => templateIds.includes(t.id));
+    
+    // Remove /[id] tags from text, keeping a readable version
+    const cleanedText = text.replace(/\/\[([^\]]+)\]/g, (_, id) => {
+      const template = templates.find(t => t.id === id);
+      return template ? `/${template.name}` : `/${id}`;
+    });
+    
+    return { cleanedText, requestedTemplates: requested };
+  };
+
+  // Build template context string for AI
+  const buildTemplateContextString = (templateList: Template[]): string => {
+    if (templateList.length === 0) return '';
+    
+    const templateLines = templateList.map(t => {
+      const desc = TEMPLATE_DESCRIPTIONS[t.id] || t.name;
+      return `- ${t.name} (${t.id}): ${desc}`;
+    }).join('\n');
+    
+    return `[TEMPLATE REQUEST: The user wants to create the following document type(s). Please generate content following the appropriate template format. Use the write_file tool to create the file in the workspace.\n${templateLines}]\n\n`;
   };
 
   // Build stakeholder context string for AI
@@ -930,7 +1068,7 @@ How can I help you today?`;
             />
             <span>Include all stakeholders ({stakeholders.length})</span>
           </label>
-          <span className="ai-stakeholder-hint">Type @ to mention</span>
+          <span className="ai-stakeholder-hint">Type @ to mention, / for templates</span>
         </div>
       )}
 
@@ -939,7 +1077,7 @@ How can I help you today?`;
           <textarea
             ref={inputRef}
             className="ai-chat-input"
-            placeholder={stakeholders.length > 0 ? "Ask me anything... (@ to mention stakeholders)" : "Ask me anything... (Shift+Enter for new line)"}
+            placeholder={templates.length > 0 ? "Ask me anything... (/ for templates, @ for stakeholders)" : "Ask me anything... (Shift+Enter for new line)"}
             value={input}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
@@ -947,6 +1085,24 @@ How can I help you today?`;
             rows={2}
             disabled={!!pendingToolCall}
           />
+          
+          {/* /Command dropdown for templates */}
+          {showCommandDropdown && filteredTemplates.length > 0 && (
+            <div className="command-dropdown">
+              <div className="command-dropdown-header">Create from template</div>
+              {filteredTemplates.map((template, index) => (
+                <div
+                  key={template.id}
+                  className={`command-item ${index === selectedCommandIndex ? 'selected' : ''}`}
+                  onClick={() => selectCommand(template)}
+                  onMouseEnter={() => setSelectedCommandIndex(index)}
+                >
+                  <span className="command-name">{template.name}</span>
+                  <span className="command-desc">{TEMPLATE_DESCRIPTIONS[template.id] || template.filename}</span>
+                </div>
+              ))}
+            </div>
+          )}
           
           {/* @Mention dropdown */}
           {showMentionDropdown && filteredStakeholders.length > 0 && (

@@ -519,6 +519,7 @@ const AppContent: React.FC = () => {
             workspacePath={workspacePath}
             currentFile={currentFile}
             stakeholders={stakeholders}
+            templates={availableTemplates}
           />
         </div>
         <StatusBar />
