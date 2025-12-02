@@ -1,0 +1,477 @@
+.timeline-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.timeline-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.timeline-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.timeline-title:hover {
+  background: var(--bg-tertiary);
+}
+
+.timeline-title-input {
+  font-size: 1.5rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border: 2px solid var(--accent-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  width: 400px;
+  max-width: 100%;
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Phase Styles */
+.timeline-phase {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.timeline-phase-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 12px 12px 0 0;
+}
+
+.timeline-phase-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.15s;
+}
+
+.timeline-phase-title:hover {
+  background: var(--bg-primary);
+}
+
+.timeline-phase-count {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.timeline-phase-title-input {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border: 2px solid var(--accent-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  max-width: 300px;
+}
+
+.timeline-phase-delete {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.timeline-phase-header:hover .timeline-phase-delete {
+  opacity: 1;
+}
+
+.timeline-phase-delete:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Timeline Events Container */
+.timeline-events {
+  position: relative;
+  padding: 20px 20px 12px 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 27px;
+  top: 30px;
+  bottom: 60px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--border-color), var(--border-color) 70%, transparent);
+  border-radius: 1px;
+}
+
+/* Event Styles */
+.timeline-event {
+  position: relative;
+  margin-bottom: 20px;
+  padding-left: 24px;
+}
+
+.timeline-event-dot {
+  position: absolute;
+  left: -20px;
+  top: 8px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-secondary);
+  box-shadow: 0 0 0 2px var(--border-color);
+  z-index: 1;
+}
+
+.timeline-event-content {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-event-content:hover {
+  border-color: var(--accent-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.timeline-event-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.timeline-event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.timeline-event-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-event-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.timeline-event-description {
+  margin: 10px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.timeline-event-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.timeline-event-content:hover .timeline-event-delete {
+  opacity: 1;
+}
+
+.timeline-event-delete:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Event Edit Mode */
+.timeline-event-edit {
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeline-event-edit-row {
+  display: flex;
+  gap: 10px;
+}
+
+.timeline-event-date-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.timeline-event-date-input:focus {
+  border-color: var(--accent-color);
+}
+
+.timeline-status-select {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 130px;
+}
+
+.timeline-event-title-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.timeline-event-title-input:focus {
+  border-color: var(--accent-color);
+}
+
+.timeline-event-desc-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  min-height: 50px;
+  transition: border-color 0.15s;
+}
+
+.timeline-event-desc-input:focus {
+  border-color: var(--accent-color);
+}
+
+.timeline-event-done-btn {
+  align-self: flex-end;
+  padding: 8px 16px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.timeline-event-done-btn:hover {
+  opacity: 0.9;
+}
+
+/* Add Event Button */
+.timeline-add-event {
+  margin-top: 8px;
+  margin-left: 24px;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.timeline-add-event:hover {
+  background: var(--bg-primary);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+/* Add Phase */
+.timeline-add-phase {
+  max-width: 400px;
+}
+
+.timeline-add-phase-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timeline-add-phase-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.timeline-new-phase-form {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timeline-new-phase-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.timeline-new-phase-input:focus {
+  border-color: var(--accent-color);
+}
+
+.timeline-new-phase-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.timeline-new-phase-add {
+  flex: 1;
+  padding: 8px 16px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.timeline-new-phase-add:hover {
+  opacity: 0.9;
+}
+
+.timeline-new-phase-cancel {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timeline-new-phase-cancel:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Scrollbar styling */
+.timeline-editor::-webkit-scrollbar,
+.timeline-content::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.timeline-editor::-webkit-scrollbar-track,
+.timeline-content::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.timeline-editor::-webkit-scrollbar-thumb,
+.timeline-content::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 6px;
+  border: 2px solid var(--bg-secondary);
+}
+
+.timeline-editor::-webkit-scrollbar-thumb:hover,
+.timeline-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-primary);
+}
+

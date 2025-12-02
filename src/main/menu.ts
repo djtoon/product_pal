@@ -77,6 +77,12 @@ export function createMenu(mainWindow: BrowserWindow): Menu {
             mainWindow.webContents.send('menu:newTemplate', 'kanban-template');
           }
         },
+        {
+          label: 'New Timeline',
+          click: () => {
+            mainWindow.webContents.send('menu:newTemplate', 'timeline-template');
+          }
+        },
         { type: 'separator' },
         {
           label: 'Save Current File as Template',

@@ -154,9 +154,16 @@ const KanbanEditor: React.FC<KanbanEditorProps> = ({ content, onChange, onSave }
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        if (onSave) {
-          onSave();
+        // Blur any active input to commit pending changes
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
         }
+        // Small delay to let blur handlers complete
+        setTimeout(() => {
+          if (onSave) {
+            onSave();
+          }
+        }, 10);
       }
     };
 
