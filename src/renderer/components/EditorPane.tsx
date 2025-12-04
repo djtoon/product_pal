@@ -5,6 +5,7 @@ import MarkdownPreview from './MarkdownPreview';
 import SplitPane from './SplitPane';
 import KanbanEditor from './KanbanEditor';
 import TimelineEditor from './TimelineEditor';
+import MediaViewer, { isMediaFile, getMediaType } from './MediaViewer';
 import { EditorFile } from '../../shared/types';
 
 // Import icons
@@ -31,6 +32,10 @@ const EditorPane: React.FC = () => {
 
   // Detect if file is a Timeline document by checking for [TIMELINE] header
   const isTimelineDocument = currentFile?.content?.match(/^#\s*\[TIMELINE\]/m) !== null;
+
+  // Detect if file is a media file (image, audio, video)
+  const isMedia = currentFile ? isMediaFile(currentFile.path) : false;
+  const mediaType = currentFile ? getMediaType(currentFile.path) : 'unknown';
 
   const saveCurrentFile = useCallback(async () => {
     const file = currentFileRef.current;
@@ -86,24 +91,30 @@ const EditorPane: React.FC = () => {
     <div className="editor-pane">
       {openFiles.length > 0 && (
         <div className="editor-tabs">
-          {openFiles.map((file: EditorFile) => (
-            <div
-              key={file.path}
-              className={`editor-tab ${currentFile?.path === file.path ? 'active' : ''}`}
-              onClick={() => setCurrentFile(file)}
-            >
-              <span>{file.path.split(/[\\/]/).pop()}</span>
-              <span
-                className="editor-tab-close"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeFile(file.path);
-                }}
+          {openFiles.map((file: EditorFile) => {
+            const fileMediaType = getMediaType(file.path);
+            const tabIcon = fileMediaType === 'image' ? '🖼️ ' :
+                           fileMediaType === 'video' ? '🎬 ' :
+                           fileMediaType === 'audio' ? '🎵 ' : '';
+            return (
+              <div
+                key={file.path}
+                className={`editor-tab ${currentFile?.path === file.path ? 'active' : ''}`}
+                onClick={() => setCurrentFile(file)}
               >
-                ×
-              </span>
-            </div>
-          ))}
+                <span>{tabIcon}{file.path.split(/[\\/]/).pop()}</span>
+                <span
+                  className="editor-tab-close"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeFile(file.path);
+                  }}
+                >
+                  ×
+                </span>
+              </div>
+            );
+          })}
           {isMarkdownFile && !isKanbanDocument && !isTimelineDocument && (
             <div className="editor-tab-action">
               <button
@@ -123,7 +134,12 @@ const EditorPane: React.FC = () => {
       )}
       <div className="editor-content">
         {currentFile ? (
-          isKanbanDocument ? (
+          isMedia ? (
+            <MediaViewer
+              filePath={currentFile.path}
+              fileName={currentFile.path.split(/[\\/]/).pop() || 'Media'}
+            />
+          ) : isKanbanDocument ? (
             <KanbanEditor
               content={currentFile.content}
               onChange={handleEditorChange}

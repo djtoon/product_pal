@@ -59,12 +59,37 @@ const createNodeRenderer = (
       }
       const ext = data.name.split('.').pop()?.toLowerCase();
       switch (ext) {
+        // Documents
         case 'md': return '📝';
         case 'prd': return '📋';
         case 'txt': return '📄';
+        // Code
         case 'js':
         case 'ts': return '📜';
         case 'json': return '⚙️';
+        // Images
+        case 'png':
+        case 'jpg':
+        case 'jpeg':
+        case 'gif':
+        case 'webp':
+        case 'bmp':
+        case 'svg':
+        case 'ico': return '🖼️';
+        // Video
+        case 'mp4':
+        case 'webm':
+        case 'ogg':
+        case 'mov':
+        case 'avi':
+        case 'mkv': return '🎬';
+        // Audio
+        case 'mp3':
+        case 'wav':
+        case 'flac':
+        case 'aac':
+        case 'm4a':
+        case 'wma': return '🎵';
         default: return '📄';
       }
     };

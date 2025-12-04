@@ -412,7 +412,7 @@ How can I help you today?`;
   }, [settings.aiEnabled, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel]);
 
   // Tools that auto-execute without user permission
-  const AUTO_EXECUTE_TOOLS = ['create_todo_list', 'update_todo', 'read_todo_list', 'read_templates'];
+  const AUTO_EXECUTE_TOOLS = ['create_todo_list', 'update_todo', 'read_todo_list', 'read_templates', 'create_mockup'];
 
   const isAutoExecuteTool = (toolName: string): boolean => {
     // MCP tools should NOT auto-execute

@@ -8,6 +8,22 @@ export interface ToolResult {
   error?: string;
 }
 
+// Mockup element types
+export interface MockupElement {
+  type: 'rect' | 'line' | 'text' | 'circle' | 'button' | 'input' | 'image-placeholder' | 'nav-bar' | 'card' | 'list-item';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  x2?: number;
+  y2?: number;
+  radius?: number;
+  text?: string;
+  fontSize?: number;
+  fill?: boolean;
+  dashed?: boolean;
+}
+
 export interface TodoItem {
   id: string;
   content: string;
@@ -340,6 +356,313 @@ export class FileSystemTools {
     }
   }
 
+  async createMockup(
+    filePath: string,
+    elements: MockupElement[],
+    options: { width?: number; height?: number; title?: string } = {}
+  ): Promise<ToolResult> {
+    try {
+      const width = options.width || 800;
+      const height = options.height || 600;
+      
+      // Create an offscreen canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        return {
+          success: false,
+          output: '',
+          error: 'Failed to create canvas context'
+        };
+      }
+
+      // White background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+
+      // Set default styles
+      ctx.strokeStyle = '#000000';
+      ctx.fillStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.font = '14px Arial, sans-serif';
+
+      // Draw title if provided
+      if (options.title) {
+        ctx.font = 'bold 18px Arial, sans-serif';
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillText(options.title, width / 2, 30);
+        ctx.textAlign = 'left';
+        ctx.font = '14px Arial, sans-serif';
+        
+        // Draw a separator line under title
+        ctx.beginPath();
+        ctx.moveTo(20, 45);
+        ctx.lineTo(width - 20, 45);
+        ctx.stroke();
+      }
+
+      // Draw each element
+      for (const el of elements) {
+        // Reset styles for each element
+        ctx.strokeStyle = '#000000';
+        ctx.fillStyle = el.fill ? '#F0F0F0' : '#000000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash(el.dashed ? [5, 5] : []);
+        
+        if (el.fontSize) {
+          ctx.font = `${el.fontSize}px Arial, sans-serif`;
+        }
+
+        switch (el.type) {
+          case 'rect':
+            if (el.width && el.height) {
+              if (el.fill) {
+                ctx.fillStyle = '#F0F0F0';
+                ctx.fillRect(el.x, el.y, el.width, el.height);
+              }
+              ctx.strokeRect(el.x, el.y, el.width, el.height);
+            }
+            break;
+
+          case 'line':
+            ctx.beginPath();
+            ctx.moveTo(el.x, el.y);
+            ctx.lineTo(el.x2 || el.x, el.y2 || el.y);
+            ctx.stroke();
+            break;
+
+          case 'text':
+            ctx.fillStyle = '#000000';
+            ctx.fillText(el.text || '', el.x, el.y);
+            break;
+
+          case 'circle':
+            ctx.beginPath();
+            ctx.arc(el.x, el.y, el.radius || 20, 0, Math.PI * 2);
+            if (el.fill) {
+              ctx.fillStyle = '#F0F0F0';
+              ctx.fill();
+            }
+            ctx.stroke();
+            break;
+
+          case 'button':
+            // Rounded rectangle button with text
+            const btnW = el.width || 100;
+            const btnH = el.height || 36;
+            const btnR = 6;
+            
+            ctx.beginPath();
+            ctx.moveTo(el.x + btnR, el.y);
+            ctx.lineTo(el.x + btnW - btnR, el.y);
+            ctx.quadraticCurveTo(el.x + btnW, el.y, el.x + btnW, el.y + btnR);
+            ctx.lineTo(el.x + btnW, el.y + btnH - btnR);
+            ctx.quadraticCurveTo(el.x + btnW, el.y + btnH, el.x + btnW - btnR, el.y + btnH);
+            ctx.lineTo(el.x + btnR, el.y + btnH);
+            ctx.quadraticCurveTo(el.x, el.y + btnH, el.x, el.y + btnH - btnR);
+            ctx.lineTo(el.x, el.y + btnR);
+            ctx.quadraticCurveTo(el.x, el.y, el.x + btnR, el.y);
+            ctx.closePath();
+            
+            if (el.fill) {
+              ctx.fillStyle = '#E0E0E0';
+              ctx.fill();
+            }
+            ctx.stroke();
+            
+            // Button text centered
+            if (el.text) {
+              ctx.fillStyle = '#000000';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(el.text, el.x + btnW / 2, el.y + btnH / 2);
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'alphabetic';
+            }
+            break;
+
+          case 'input':
+            // Text input field
+            const inputW = el.width || 200;
+            const inputH = el.height || 32;
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(el.x, el.y, inputW, inputH);
+            ctx.strokeRect(el.x, el.y, inputW, inputH);
+            
+            // Placeholder text
+            if (el.text) {
+              ctx.fillStyle = '#999999';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(el.text, el.x + 8, el.y + inputH / 2);
+              ctx.textBaseline = 'alphabetic';
+            }
+            break;
+
+          case 'image-placeholder':
+            // Crossed box representing an image
+            const imgW = el.width || 100;
+            const imgH = el.height || 100;
+            
+            ctx.fillStyle = '#F5F5F5';
+            ctx.fillRect(el.x, el.y, imgW, imgH);
+            ctx.strokeRect(el.x, el.y, imgW, imgH);
+            
+            // Draw X
+            ctx.beginPath();
+            ctx.moveTo(el.x, el.y);
+            ctx.lineTo(el.x + imgW, el.y + imgH);
+            ctx.moveTo(el.x + imgW, el.y);
+            ctx.lineTo(el.x, el.y + imgH);
+            ctx.stroke();
+            
+            // Optional label
+            if (el.text) {
+              ctx.fillStyle = '#666666';
+              ctx.textAlign = 'center';
+              ctx.fillText(el.text, el.x + imgW / 2, el.y + imgH + 16);
+              ctx.textAlign = 'left';
+            }
+            break;
+
+          case 'nav-bar':
+            // Navigation bar at top
+            const navW = el.width || width - 40;
+            const navH = el.height || 50;
+            
+            ctx.fillStyle = '#F8F8F8';
+            ctx.fillRect(el.x, el.y, navW, navH);
+            ctx.strokeRect(el.x, el.y, navW, navH);
+            
+            // Nav title/brand
+            if (el.text) {
+              ctx.fillStyle = '#000000';
+              ctx.font = 'bold 16px Arial, sans-serif';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(el.text, el.x + 16, el.y + navH / 2);
+              ctx.font = '14px Arial, sans-serif';
+              ctx.textBaseline = 'alphabetic';
+            }
+            break;
+
+          case 'card':
+            // Card with optional title
+            const cardW = el.width || 200;
+            const cardH = el.height || 150;
+            const cardR = 8;
+            
+            ctx.beginPath();
+            ctx.moveTo(el.x + cardR, el.y);
+            ctx.lineTo(el.x + cardW - cardR, el.y);
+            ctx.quadraticCurveTo(el.x + cardW, el.y, el.x + cardW, el.y + cardR);
+            ctx.lineTo(el.x + cardW, el.y + cardH - cardR);
+            ctx.quadraticCurveTo(el.x + cardW, el.y + cardH, el.x + cardW - cardR, el.y + cardH);
+            ctx.lineTo(el.x + cardR, el.y + cardH);
+            ctx.quadraticCurveTo(el.x, el.y + cardH, el.x, el.y + cardH - cardR);
+            ctx.lineTo(el.x, el.y + cardR);
+            ctx.quadraticCurveTo(el.x, el.y, el.x + cardR, el.y);
+            ctx.closePath();
+            
+            ctx.fillStyle = '#FAFAFA';
+            ctx.fill();
+            ctx.stroke();
+            
+            // Card title
+            if (el.text) {
+              ctx.fillStyle = '#000000';
+              ctx.font = 'bold 14px Arial, sans-serif';
+              ctx.fillText(el.text, el.x + 12, el.y + 24);
+              ctx.font = '14px Arial, sans-serif';
+              
+              // Separator line under title
+              ctx.beginPath();
+              ctx.moveTo(el.x, el.y + 36);
+              ctx.lineTo(el.x + cardW, el.y + 36);
+              ctx.stroke();
+            }
+            break;
+
+          case 'list-item':
+            // List item with bullet
+            const itemH = el.height || 32;
+            const itemW = el.width || 200;
+            
+            // Bullet point
+            ctx.beginPath();
+            ctx.arc(el.x + 8, el.y + itemH / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Text
+            if (el.text) {
+              ctx.fillStyle = '#000000';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(el.text, el.x + 20, el.y + itemH / 2);
+              ctx.textBaseline = 'alphabetic';
+            }
+            
+            // Optional bottom border
+            if (el.dashed !== false) {
+              ctx.setLineDash([2, 2]);
+              ctx.beginPath();
+              ctx.moveTo(el.x, el.y + itemH);
+              ctx.lineTo(el.x + itemW, el.y + itemH);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            break;
+        }
+      }
+
+      // Reset line dash
+      ctx.setLineDash([]);
+
+      // Add a subtle border around the entire mockup
+      ctx.strokeStyle = '#CCCCCC';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 0, width, height);
+
+      // Convert canvas to PNG data URL and then to buffer
+      const dataUrl = canvas.toDataURL('image/png');
+      const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Ensure file path ends with .png
+      let outputPath = filePath;
+      if (!outputPath.toLowerCase().endsWith('.png')) {
+        outputPath += '.png';
+      }
+
+      // Resolve full path
+      const fullPath = this.resolvePath(outputPath);
+
+      // Ensure directory exists
+      const dir = path.dirname(fullPath);
+      try {
+        await ipcRenderer.invoke('fs:createDirectory', dir);
+      } catch {
+        // Directory might already exist, that's fine
+      }
+
+      // Write the file
+      await ipcRenderer.invoke('fs:writeFileBinary', fullPath, buffer);
+
+      return {
+        success: true,
+        output: `Mockup created successfully: ${outputPath}\nDimensions: ${width}x${height}px\nElements drawn: ${elements.length}`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        output: '',
+        error: error.message
+      };
+    }
+  }
+
   private resolvePath(filePath: string): string {
     // If absolute path, use as is
     if (path.isAbsolute(filePath)) {
@@ -433,6 +756,19 @@ export class FileSystemTools {
       
       case 'read_todo_list':
         return this.readTodoList();
+      
+      case 'create_mockup':
+        if (!params.file_path) {
+          return { success: false, output: '', error: 'Missing required parameter: file_path' };
+        }
+        if (!params.elements || !Array.isArray(params.elements)) {
+          return { success: false, output: '', error: 'Missing required parameter: elements (array of UI elements)' };
+        }
+        return this.createMockup(params.file_path, params.elements, {
+          width: params.width,
+          height: params.height,
+          title: params.title
+        });
       
       default:
         return {

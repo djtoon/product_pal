@@ -99,6 +99,20 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
     }
   });
 
+  // Write binary file content (for images, etc.)
+  ipcMain.handle('fs:writeFileBinary', async (event, filePath: string, buffer: Buffer) => {
+    try {
+      // Ensure directory exists
+      const dir = path.dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(filePath, buffer);
+      return true;
+    } catch (error) {
+      console.error('Error writing binary file:', error);
+      throw error;
+    }
+  });
+
   // Create new file
   ipcMain.handle('fs:createFile', async (event, filePath: string) => {
     try {

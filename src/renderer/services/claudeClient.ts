@@ -225,6 +225,62 @@ const createTools = (): Tool[] => {
           }
         } as ToolInputSchema
       } as ToolSpecification
+    },
+    {
+      toolSpec: {
+        name: 'create_mockup',
+        description: 'Create a UI mockup/wireframe image with white background and black lines/text. Use this to quickly visualize UI layouts, screens, or components. The output is a PNG image saved to the workspace. Elements are drawn in order (first elements are behind later ones).',
+        inputSchema: {
+          json: {
+            type: 'object',
+            properties: {
+              file_path: {
+                type: 'string',
+                description: 'REQUIRED: Output file path for the mockup image (e.g., "mockups/login-screen.png"). Must end with .png'
+              },
+              width: {
+                type: 'number',
+                description: 'Canvas width in pixels (default: 800)'
+              },
+              height: {
+                type: 'number',
+                description: 'Canvas height in pixels (default: 600)'
+              },
+              title: {
+                type: 'string',
+                description: 'Optional title displayed at top of mockup'
+              },
+              elements: {
+                type: 'array',
+                description: 'Array of UI elements to draw on the mockup',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['rect', 'line', 'text', 'circle', 'button', 'input', 'image-placeholder', 'nav-bar', 'card', 'list-item'],
+                      description: 'Element type: rect (rectangle), line, text, circle, button (rounded rect with text), input (text field), image-placeholder (crossed box), nav-bar (top navigation), card (rounded container), list-item (item with bullet)'
+                    },
+                    x: { type: 'number', description: 'X position from left' },
+                    y: { type: 'number', description: 'Y position from top' },
+                    width: { type: 'number', description: 'Width (for rect, button, input, etc.)' },
+                    height: { type: 'number', description: 'Height (for rect, button, input, etc.)' },
+                    x2: { type: 'number', description: 'End X position (for lines)' },
+                    y2: { type: 'number', description: 'End Y position (for lines)' },
+                    radius: { type: 'number', description: 'Radius (for circles)' },
+                    text: { type: 'string', description: 'Text content (for text, button, input placeholder, card title, list-item)' },
+                    fontSize: { type: 'number', description: 'Font size in pixels (default: 14)' },
+                    fill: { type: 'boolean', description: 'Fill shape with light gray (default: false, outline only)' },
+                    dashed: { type: 'boolean', description: 'Use dashed line style' }
+                  },
+                  required: ['type', 'x', 'y']
+                }
+              }
+            },
+            required: ['file_path', 'elements']
+          }
+        } as ToolInputSchema
+      } as ToolSpecification
     }
   ];
 };

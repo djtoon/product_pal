@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import FileTree from './FileTree';
 import { FileItem, EditorFile } from '../../shared/types';
+import { isMediaFile } from './MediaViewer';
 import './Sidebar.css';
 
 const { ipcRenderer } = window.require('electron');
@@ -41,13 +42,24 @@ const Sidebar: React.FC = () => {
   const handleFileClick = async (file: FileItem) => {
     if (!file.isDirectory) {
       try {
-        const content = await ipcRenderer.invoke('fs:readFile', file.path);
         const ext = file.path.split('.').pop()?.toLowerCase() || 'txt';
-        addOpenFile({
-          path: file.path,
-          content: content,
-          language: ext
-        });
+        
+        // For media files, don't read content - just pass the path
+        if (isMediaFile(file.path)) {
+          addOpenFile({
+            path: file.path,
+            content: '', // Media files don't need text content
+            language: ext
+          });
+        } else {
+          // For text files, read the content
+          const content = await ipcRenderer.invoke('fs:readFile', file.path);
+          addOpenFile({
+            path: file.path,
+            content: content,
+            language: ext
+          });
+        }
       } catch (error) {
         console.error('Error opening file:', error);
       }
