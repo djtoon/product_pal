@@ -259,6 +259,11 @@ const AppContent: React.FC = () => {
         e.preventDefault();
         setIsCommandPaletteOpen(true);
       }
+      // New File: Ctrl+N
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleNewFile();
+      }
       // Settings: Ctrl+,
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {
         e.preventDefault();

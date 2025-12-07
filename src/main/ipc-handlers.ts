@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as fss from 'fs';
 import * as path from 'path';
 import { FileItem } from '../shared/types';
-import { mcpManager, MCPServerConfig } from './mcp-client';
+import { strandsAgent, AgentConfig, AgentStreamEvent, TodoItem } from './strands-agent';
 
 // Get settings file path in user data directory
 const getSettingsPath = () => {
@@ -44,11 +44,130 @@ const notifyFileChange = (mainWindow: BrowserWindow | null) => {
 };
 
 export function setupIpcHandlers(mainWindow?: BrowserWindow) {
-  // Forward MCP logs to renderer for terminal display
-  mcpManager.on('log', (log) => {
+  // Forward todo updates to renderer
+  strandsAgent.on('todosUpdated', (todos: TodoItem[]) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('mcp:log', log);
+      mainWindow.webContents.send('agent:todosUpdated', todos);
     }
+  });
+
+  // Forward mockup creation requests to renderer (for canvas rendering)
+  strandsAgent.on('createMockup', (params: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('agent:createMockup', params);
+    }
+  });
+
+  // ============================================
+  // STRANDS AGENT HANDLERS
+  // ============================================
+
+  // Initialize the agent with config
+  ipcMain.handle('agent:initialize', async (event, config: AgentConfig) => {
+    try {
+      await strandsAgent.initialize(config);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error initializing agent:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Set workspace path for the agent
+  ipcMain.handle('agent:setWorkspacePath', async (event, workspacePath: string | null) => {
+    strandsAgent.setWorkspacePath(workspacePath);
+    return { success: true };
+  });
+
+  // Stream agent response - returns a stream ID and sends events via IPC
+  ipcMain.handle('agent:stream', async (event, message: string, context?: { workspacePath?: string; currentFile?: string }) => {
+    const streamId = Date.now().toString();
+    
+    // Run streaming in background and send events to renderer
+    (async () => {
+      try {
+        for await (const streamEvent of strandsAgent.stream(message, context)) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('agent:streamEvent', { streamId, event: streamEvent });
+          }
+        }
+      } catch (error: any) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('agent:streamEvent', { 
+            streamId, 
+            event: { type: 'error', data: error.message } 
+          });
+        }
+      }
+    })();
+
+    return { streamId };
+  });
+
+  // Abort current agent request
+  ipcMain.handle('agent:abort', async () => {
+    strandsAgent.abort();
+    return { success: true };
+  });
+
+  // Clear agent history
+  ipcMain.handle('agent:clearHistory', async () => {
+    strandsAgent.clearHistory();
+    return { success: true };
+  });
+
+  // Get current todos
+  ipcMain.handle('agent:getTodos', async () => {
+    return strandsAgent.getTodos();
+  });
+
+  // Clear todos
+  ipcMain.handle('agent:clearTodos', async () => {
+    strandsAgent.clearTodos();
+    return { success: true };
+  });
+
+  // ============================================
+  // MCP HANDLERS (using Strands McpClient)
+  // ============================================
+
+  // Connect to MCP servers from workspace config
+  ipcMain.handle('mcp:connect', async (event, workspacePath: string) => {
+    try {
+      const mcpPath = path.join(workspacePath, '.mcp.json');
+      const content = await fs.readFile(mcpPath, 'utf-8');
+      const config = JSON.parse(content);
+      
+      if (config?.mcpServers) {
+        const results = await strandsAgent.connectMCPServers(config.mcpServers);
+        return results;
+      }
+      
+      return {};
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return {}; // No config file
+      }
+      console.error('Error connecting to MCP servers:', error);
+      throw error;
+    }
+  });
+
+  // Disconnect MCP servers (handled by agent reinitialization)
+  ipcMain.handle('mcp:disconnect', async () => {
+    // MCP clients are managed by the agent
+    return true;
+  });
+
+  // Get MCP connection status
+  ipcMain.handle('mcp:getStatus', async () => {
+    // This will be updated when we have better MCP status tracking
+    return {
+      total: 0,
+      connected: 0,
+      hasErrors: false,
+      status: 'disconnected'
+    };
   });
 
   // Open folder dialog
@@ -473,129 +592,41 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
     }
   });
 
-  // Connect to all MCP servers in config
-  ipcMain.handle('mcp:connect', async (event, workspacePath: string) => {
-    try {
-      const mcpPath = path.join(workspacePath, '.mcp.json');
-      const content = await fs.readFile(mcpPath, 'utf-8');
-      const config = JSON.parse(content);
-      
-      const results: Record<string, { status: string; tools: any[]; error?: string }> = {};
-      
-      if (config?.mcpServers) {
-        for (const [name, serverConfig] of Object.entries(config.mcpServers)) {
-          try {
-            const connection = await mcpManager.connectToServer(name, serverConfig as MCPServerConfig);
-            results[name] = {
-              status: connection.status,
-              tools: connection.tools,
-              error: connection.error
-            };
-          } catch (err: any) {
-            results[name] = {
-              status: 'error',
-              tools: [],
-              error: err.message
-            };
-          }
-        }
-      }
-      
-      return results;
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        return {}; // No config file
-      }
-      console.error('Error connecting to MCP servers:', error);
-      throw error;
-    }
-  });
-
-  // Disconnect all MCP servers
-  ipcMain.handle('mcp:disconnect', async () => {
-    await mcpManager.disconnectAll();
-    return true;
-  });
-
-  // Get all connected MCP servers and their tools
+  // Get all connected MCP servers and their tools (stub for compatibility)
   ipcMain.handle('mcp:getConnections', async () => {
-    const connections = mcpManager.getAllConnections();
-    return connections.map(c => ({
-      name: c.name,
-      status: c.status,
-      tools: c.tools,
-      error: c.error
-    }));
+    // MCP connections are now managed by the Strands agent
+    return [];
   });
 
   // Reconnect a single MCP server
   ipcMain.handle('mcp:reconnect', async (event, workspacePath: string, serverName: string) => {
+    // Reconnect all servers via the agent
     try {
-      // First disconnect the server
-      await mcpManager.disconnectServer(serverName);
-      
-      // Read config and reconnect just this server
       const mcpPath = path.join(workspacePath, '.mcp.json');
       const content = await fs.readFile(mcpPath, 'utf-8');
       const config = JSON.parse(content);
       
-      if (config?.mcpServers?.[serverName]) {
-        const connection = await mcpManager.connectToServer(serverName, config.mcpServers[serverName] as MCPServerConfig);
-        return {
-          name: serverName,
-          status: connection.status,
-          tools: connection.tools,
-          error: connection.error
-        };
+      if (config?.mcpServers) {
+        const results = await strandsAgent.connectMCPServers(config.mcpServers);
+        return results[serverName] || { name: serverName, status: 'error', tools: [], error: 'Server not found' };
       }
       
-      return { name: serverName, status: 'error', tools: [], error: 'Server not found in config' };
+      return { name: serverName, status: 'error', tools: [], error: 'No MCP config found' };
     } catch (error: any) {
       return { name: serverName, status: 'error', tools: [], error: error.message };
     }
   });
 
-  // Get MCP connection status summary (for status indicator)
-  ipcMain.handle('mcp:getStatus', async () => {
-    const connections = mcpManager.getAllConnections();
-    const total = connections.length;
-    const connected = connections.filter(c => c.status === 'connected').length;
-    const hasErrors = connections.some(c => c.status === 'error');
-    
-    return {
-      total,
-      connected,
-      hasErrors,
-      status: connected > 0 ? 'connected' : (hasErrors ? 'error' : 'disconnected')
-    };
-  });
-
-  // Forward MCP status changes to renderer
-  mcpManager.on('serverConnected', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('mcp:statusChanged');
-    }
-  });
-  
-  mcpManager.on('serverDisconnected', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('mcp:statusChanged');
-    }
-  });
-
-  // Get all available tools from all connected servers
+  // Get all available tools from all connected servers (stub for compatibility)
   ipcMain.handle('mcp:getTools', async () => {
-    return mcpManager.getAllTools();
+    // Tools are now managed by the Strands agent internally
+    return [];
   });
 
-  // Call an MCP tool
+  // Call an MCP tool (stub - tools are called automatically by the agent)
   ipcMain.handle('mcp:callTool', async (event, serverName: string, toolName: string, args: Record<string, any>) => {
-    try {
-      const result = await mcpManager.callTool(serverName, toolName, args);
-      return { success: true, result };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    // MCP tools are now called automatically by the Strands agent during streaming
+    return { success: false, error: 'MCP tools are now called automatically by the agent' };
   });
 }
 

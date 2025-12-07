@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './TodoListPanel.css';
-import { TodoItem } from '../services/fileSystemTools';
+import { TodoItem } from '../../shared/types';
 
 // Import task icons
 import taskIcon from '../assets/icons/task.svg';

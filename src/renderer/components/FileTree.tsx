@@ -528,6 +528,25 @@ const FileTree: React.FC<FileTreeProps> = ({ items, onFileClick, onRefresh, work
               }
             }
             break;
+          default:
+            // Jump to file/folder by letter key
+            if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key) && treeRef.current) {
+              const letter = e.key.toLowerCase();
+              // Get all visible nodes from the tree
+              const allNodes = treeRef.current.visibleNodes as NodeApi<TreeNode>[];
+              if (allNodes && allNodes.length > 0) {
+                // Find the first node starting with this letter
+                const matchingNode = allNodes.find((node: NodeApi<TreeNode>) => 
+                  node.data.name.toLowerCase().startsWith(letter)
+                );
+                if (matchingNode) {
+                  matchingNode.select();
+                  // Scroll the node into view
+                  treeRef.current.scrollTo(matchingNode.id);
+                }
+              }
+            }
+            break;
         }
       }
     };
@@ -571,7 +590,7 @@ const FileTree: React.FC<FileTreeProps> = ({ items, onFileClick, onRefresh, work
           <Tree
             ref={treeRef}
             data={treeData}
-            openByDefault={true}
+            openByDefault={false}
             width="100%"
             height={treeHeight}
             indent={16}

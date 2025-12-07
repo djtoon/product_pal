@@ -10,9 +10,6 @@ import { EditorFile } from '../../shared/types';
 
 // Import icons
 import welcomeIcon from '../assets/icons/weclome.svg';
-import newFileIcon from '../assets/icons/newfile.svg';
-import aiIcon from '../assets/icons/ai_avatar.svg';
-import settingsIcon from '../assets/icons/settings.svg';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -179,21 +176,6 @@ const EditorPane: React.FC = () => {
             <div className="editor-welcome-content">
               <img src={welcomeIcon} alt="Collie" className="editor-welcome-icon" />
               <p className="editor-welcome-tagline">Your AI-Powered Product Management IDE</p>
-              
-              <div className="editor-welcome-features">
-                <div className="editor-welcome-feature">
-                  <img src={newFileIcon} alt="" className="feature-icon" />
-                  <span>Create PRDs & Technical Specs</span>
-                </div>
-                <div className="editor-welcome-feature">
-                  <img src={aiIcon} alt="" className="feature-icon" />
-                  <span>AI Assistant powered by Claude</span>
-                </div>
-                <div className="editor-welcome-feature">
-                  <img src={settingsIcon} alt="" className="feature-icon" />
-                  <span>Fast editing with Monaco Editor</span>
-                </div>
-              </div>
 
               <div className="editor-welcome-shortcuts">
                 <div className="shortcut-item">

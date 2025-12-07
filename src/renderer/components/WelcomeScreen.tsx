@@ -4,9 +4,6 @@ import './WelcomeScreen.css';
 // Import icons
 import welcomeIcon from '../assets/icons/weclome.svg';
 import folderIcon from '../assets/icons/folder.svg';
-import newFileIcon from '../assets/icons/newfile.svg';
-import aiIcon from '../assets/icons/ai_avatar.svg';
-import settingsIcon from '../assets/icons/settings.svg';
 
 interface WelcomeScreenProps {
   onSelectWorkspace: () => void;
@@ -23,18 +20,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectWorkspace }) => {
         <p className="welcome-tagline">
           Your AI-Powered Product Management IDE
         </p>
-
-        <div className="welcome-features">
-          <div className="welcome-feature">
-            <img src={newFileIcon} alt="" className="feature-icon" /> Create PRDs & Technical Specs
-          </div>
-          <div className="welcome-feature">
-            <img src={aiIcon} alt="" className="feature-icon" /> AI Assistant powered by Claude
-          </div>
-          <div className="welcome-feature">
-            <img src={settingsIcon} alt="" className="feature-icon" /> Create, use and share document templates
-          </div>
-        </div>
 
         <button className="welcome-btn" onClick={onSelectWorkspace}>
           <img src={folderIcon} alt="" className="btn-icon" />

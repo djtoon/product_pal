@@ -22,3 +22,11 @@ export interface Stakeholder {
   name: string;
   role: string;
 }
+
+export interface TodoItem {
+  id: string;
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  createdAt: number;
+  updatedAt: number;
+}

@@ -2,12 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './AIChat.css';
 import { ChatMessage } from '../../shared/settings';
-import { ClaudeBedrockClient, ToolCall as ClaudeToolCall, MCPToolDefinition } from '../services/claudeClient';
-import { fileSystemTools, ToolResult, TodoItem } from '../services/fileSystemTools';
 import ToolCallConfirmation, { ToolCall } from './ToolCallConfirmation';
 import TodoListPanel from './TodoListPanel';
 import systemPromptMd from '../system_prompt.md';
-import { Stakeholder } from '../../shared/types';
+import { Stakeholder, TodoItem } from '../../shared/types';
 
 const { ipcRenderer } = window.require('electron');
 
@@ -34,6 +32,16 @@ const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
   'kanban-template': 'Kanban Board - visual project board with columns and cards',
   'timeline-template': 'Timeline - project timeline with phases and milestones',
 };
+
+// Agent stream event interface
+interface AgentStreamEvent {
+  type: 'text' | 'thinking' | 'tool_use' | 'tool_result' | 'error' | 'done';
+  data?: string;
+  toolName?: string;
+  toolInput?: Record<string, any>;
+  toolUseId?: string;
+  requiresConfirmation?: boolean;
+}
 
 interface AIChatProps {
   isOpen: boolean;
@@ -101,41 +109,72 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isResizing = useRef(false);
+  const [pendingToolCall, setPendingToolCall] = useState<{ toolCall: ToolCall; toolUseId: string } | null>(null);
+  const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingThinking, setStreamingThinking] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isCancelledRef = useRef<boolean>(false);
+  const agentInitializedRef = useRef<boolean>(false);
+
+  // Initialize agent when settings change
+  useEffect(() => {
+    const initializeAgent = async () => {
+      // Check if we have valid credentials for the selected provider
+      const hasBedrockCredentials = settings.awsAccessKeyId && settings.awsSecretAccessKey;
+      const hasOpenAICredentials = settings.openaiApiKey;
+      const isConfigured = settings.aiProvider === 'openai' ? hasOpenAICredentials : hasBedrockCredentials;
+
+      if (settings.aiEnabled && isConfigured) {
+        try {
+          await ipcRenderer.invoke('agent:initialize', {
+            provider: settings.aiProvider || 'bedrock',
+            // Bedrock settings
+            region: settings.awsRegion,
+            accessKeyId: settings.awsAccessKeyId,
+            secretAccessKey: settings.awsSecretAccessKey,
+            bedrockModelId: settings.bedrockModel,
+            // OpenAI settings
+            openaiApiKey: settings.openaiApiKey,
+            openaiModelId: settings.openaiModel,
+            openaiBaseUrl: settings.openaiBaseUrl,
+            // Common
+            systemPrompt: systemPromptMd,
+          });
+          agentInitializedRef.current = true;
+          console.log(`[AIChat] Agent initialized with ${settings.aiProvider || 'bedrock'} provider`);
+        } catch (error) {
+          console.error('[AIChat] Failed to initialize agent:', error);
+        }
+      }
+    };
+
+    initializeAgent();
+  }, [settings.aiEnabled, settings.aiProvider, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel, settings.openaiApiKey, settings.openaiModel, settings.openaiBaseUrl]);
+
+  // Update workspace path in agent
+  useEffect(() => {
+    if (workspacePath) {
+      ipcRenderer.invoke('agent:setWorkspacePath', workspacePath);
+    }
+  }, [workspacePath]);
 
   // Connect to MCP servers and load tools when workspace changes
   useEffect(() => {
     const connectMcpServers = async () => {
       if (!workspacePath) {
         setMcpServers([]);
-        // Clear MCP tools from Claude client
-        if (claudeClientRef.current) {
-          claudeClientRef.current.setMCPTools([]);
-        }
         return;
       }
       
       try {
-        // Connect to all MCP servers
+        // Connect to all MCP servers via the agent
         const results = await ipcRenderer.invoke('mcp:connect', workspacePath);
         const connectedServers = Object.keys(results).filter(
           name => results[name].status === 'connected'
         );
         setMcpServers(connectedServers);
-        
-        // Get all tools from connected servers
-        const allTools = await ipcRenderer.invoke('mcp:getTools');
-        
-        // Update Claude client with MCP tools
-        if (claudeClientRef.current && allTools.length > 0) {
-          const mcpToolDefs: MCPToolDefinition[] = allTools.map((tool: any) => ({
-            name: tool.name,
-            serverName: tool.serverName,
-            description: tool.description || '',
-            inputSchema: tool.inputSchema || { type: 'object', properties: {} }
-          }));
-          claudeClientRef.current.setMCPTools(mcpToolDefs);
-          console.log(`[AIChat] Loaded ${mcpToolDefs.length} MCP tools from ${connectedServers.length} servers`);
-        }
+        console.log(`[AIChat] MCP servers connected: ${connectedServers.join(', ')}`);
       } catch (err) {
         console.error('[AIChat] Error connecting to MCP servers:', err);
         setMcpServers([]);
@@ -150,13 +189,383 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
     };
   }, [workspacePath]);
 
-  // Set up todo update callback
+  // Listen for todo updates from the agent
   useEffect(() => {
-    fileSystemTools.setTodoUpdateCallback(setTodos);
+    const handleTodosUpdated = (_event: any, updatedTodos: TodoItem[]) => {
+      setTodos(updatedTodos);
+    };
+
+    ipcRenderer.on('agent:todosUpdated', handleTodosUpdated);
+
     return () => {
-      fileSystemTools.setTodoUpdateCallback(null);
+      ipcRenderer.removeListener('agent:todosUpdated', handleTodosUpdated);
     };
   }, []);
+
+  // Listen for mockup creation requests from the agent
+  useEffect(() => {
+    const handleCreateMockup = async (_event: any, params: any) => {
+      try {
+        const { file_path, width = 800, height = 600, title, elements = [] } = params;
+        
+        // Create an offscreen canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          console.error('[AIChat] Failed to create canvas context');
+          return;
+        }
+
+        // White background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+
+        // Set default styles
+        ctx.strokeStyle = '#000000';
+        ctx.fillStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.font = '14px Arial, sans-serif';
+
+        // Draw title if provided
+        if (title) {
+          ctx.font = 'bold 18px Arial, sans-serif';
+          ctx.fillStyle = '#000000';
+          ctx.textAlign = 'center';
+          ctx.fillText(title, width / 2, 30);
+          ctx.textAlign = 'left';
+          ctx.font = '14px Arial, sans-serif';
+          
+          // Draw a separator line under title
+          ctx.beginPath();
+          ctx.moveTo(20, 45);
+          ctx.lineTo(width - 20, 45);
+          ctx.stroke();
+        }
+
+        // Draw each element
+        for (const el of elements) {
+          // Reset styles for each element
+          ctx.strokeStyle = '#000000';
+          ctx.fillStyle = el.fill ? '#F0F0F0' : '#000000';
+          ctx.lineWidth = 2;
+          ctx.setLineDash(el.dashed ? [5, 5] : []);
+          
+          if (el.fontSize) {
+            ctx.font = `${el.fontSize}px Arial, sans-serif`;
+          }
+
+          switch (el.type) {
+            case 'rect':
+              if (el.width && el.height) {
+                if (el.fill) {
+                  ctx.fillStyle = '#F0F0F0';
+                  ctx.fillRect(el.x, el.y, el.width, el.height);
+                }
+                ctx.strokeRect(el.x, el.y, el.width, el.height);
+              }
+              break;
+
+            case 'line':
+              ctx.beginPath();
+              ctx.moveTo(el.x, el.y);
+              ctx.lineTo(el.x2 || el.x, el.y2 || el.y);
+              ctx.stroke();
+              break;
+
+            case 'text':
+              ctx.fillStyle = '#000000';
+              ctx.fillText(el.text || '', el.x, el.y);
+              break;
+
+            case 'circle':
+              ctx.beginPath();
+              ctx.arc(el.x, el.y, el.radius || 20, 0, Math.PI * 2);
+              if (el.fill) {
+                ctx.fillStyle = '#F0F0F0';
+                ctx.fill();
+              }
+              ctx.stroke();
+              break;
+
+            case 'button':
+              const btnW = el.width || 100;
+              const btnH = el.height || 36;
+              const btnR = 6;
+              
+              ctx.beginPath();
+              ctx.moveTo(el.x + btnR, el.y);
+              ctx.lineTo(el.x + btnW - btnR, el.y);
+              ctx.quadraticCurveTo(el.x + btnW, el.y, el.x + btnW, el.y + btnR);
+              ctx.lineTo(el.x + btnW, el.y + btnH - btnR);
+              ctx.quadraticCurveTo(el.x + btnW, el.y + btnH, el.x + btnW - btnR, el.y + btnH);
+              ctx.lineTo(el.x + btnR, el.y + btnH);
+              ctx.quadraticCurveTo(el.x, el.y + btnH, el.x, el.y + btnH - btnR);
+              ctx.lineTo(el.x, el.y + btnR);
+              ctx.quadraticCurveTo(el.x, el.y, el.x + btnR, el.y);
+              ctx.closePath();
+              
+              if (el.fill) {
+                ctx.fillStyle = '#E0E0E0';
+                ctx.fill();
+              }
+              ctx.stroke();
+              
+              if (el.text) {
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(el.text, el.x + btnW / 2, el.y + btnH / 2);
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+              }
+              break;
+
+            case 'input':
+              const inputW = el.width || 200;
+              const inputH = el.height || 32;
+              
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(el.x, el.y, inputW, inputH);
+              ctx.strokeRect(el.x, el.y, inputW, inputH);
+              
+              if (el.text) {
+                ctx.fillStyle = '#999999';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(el.text, el.x + 8, el.y + inputH / 2);
+                ctx.textBaseline = 'alphabetic';
+              }
+              break;
+
+            case 'image-placeholder':
+              const imgW = el.width || 100;
+              const imgH = el.height || 100;
+              
+              ctx.fillStyle = '#F5F5F5';
+              ctx.fillRect(el.x, el.y, imgW, imgH);
+              ctx.strokeRect(el.x, el.y, imgW, imgH);
+              
+              ctx.beginPath();
+              ctx.moveTo(el.x, el.y);
+              ctx.lineTo(el.x + imgW, el.y + imgH);
+              ctx.moveTo(el.x + imgW, el.y);
+              ctx.lineTo(el.x, el.y + imgH);
+              ctx.stroke();
+              
+              if (el.text) {
+                ctx.fillStyle = '#666666';
+                ctx.textAlign = 'center';
+                ctx.fillText(el.text, el.x + imgW / 2, el.y + imgH + 16);
+                ctx.textAlign = 'left';
+              }
+              break;
+
+            case 'nav-bar':
+              const navW = el.width || width - 40;
+              const navH = el.height || 50;
+              
+              ctx.fillStyle = '#F8F8F8';
+              ctx.fillRect(el.x, el.y, navW, navH);
+              ctx.strokeRect(el.x, el.y, navW, navH);
+              
+              if (el.text) {
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 16px Arial, sans-serif';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(el.text, el.x + 16, el.y + navH / 2);
+                ctx.font = '14px Arial, sans-serif';
+                ctx.textBaseline = 'alphabetic';
+              }
+              break;
+
+            case 'card':
+              const cardW = el.width || 200;
+              const cardH = el.height || 150;
+              const cardR = 8;
+              
+              ctx.beginPath();
+              ctx.moveTo(el.x + cardR, el.y);
+              ctx.lineTo(el.x + cardW - cardR, el.y);
+              ctx.quadraticCurveTo(el.x + cardW, el.y, el.x + cardW, el.y + cardR);
+              ctx.lineTo(el.x + cardW, el.y + cardH - cardR);
+              ctx.quadraticCurveTo(el.x + cardW, el.y + cardH, el.x + cardW - cardR, el.y + cardH);
+              ctx.lineTo(el.x + cardR, el.y + cardH);
+              ctx.quadraticCurveTo(el.x, el.y + cardH, el.x, el.y + cardH - cardR);
+              ctx.lineTo(el.x, el.y + cardR);
+              ctx.quadraticCurveTo(el.x, el.y, el.x + cardR, el.y);
+              ctx.closePath();
+              
+              ctx.fillStyle = '#FAFAFA';
+              ctx.fill();
+              ctx.stroke();
+              
+              if (el.text) {
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 14px Arial, sans-serif';
+                ctx.fillText(el.text, el.x + 12, el.y + 24);
+                ctx.font = '14px Arial, sans-serif';
+                
+                ctx.beginPath();
+                ctx.moveTo(el.x, el.y + 36);
+                ctx.lineTo(el.x + cardW, el.y + 36);
+                ctx.stroke();
+              }
+              break;
+
+            case 'list-item':
+              const itemH = el.height || 32;
+              const itemW = el.width || 200;
+              
+              ctx.beginPath();
+              ctx.arc(el.x + 8, el.y + itemH / 2, 3, 0, Math.PI * 2);
+              ctx.fill();
+              
+              if (el.text) {
+                ctx.fillStyle = '#000000';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(el.text, el.x + 20, el.y + itemH / 2);
+                ctx.textBaseline = 'alphabetic';
+              }
+              
+              if (el.dashed !== false) {
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(el.x, el.y + itemH);
+                ctx.lineTo(el.x + itemW, el.y + itemH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+              }
+              break;
+          }
+        }
+
+        // Reset line dash
+        ctx.setLineDash([]);
+
+        // Add a subtle border around the entire mockup
+        ctx.strokeStyle = '#CCCCCC';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, width, height);
+
+        // Convert canvas to PNG data URL and then to buffer
+        const dataUrl = canvas.toDataURL('image/png');
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+        
+        // Convert base64 to Uint8Array for IPC transfer
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Ensure file path ends with .png
+        let outputPath = file_path;
+        if (!outputPath.toLowerCase().endsWith('.png')) {
+          outputPath += '.png';
+        }
+
+        // Resolve full path relative to workspace
+        const path = window.require('path');
+        const fullPath = workspacePath ? path.join(workspacePath, outputPath) : outputPath;
+
+        // Write the file via IPC
+        await ipcRenderer.invoke('fs:writeFileBinary', fullPath, Buffer.from(bytes));
+
+        console.log(`[AIChat] Mockup created: ${fullPath}`);
+      } catch (error: any) {
+        console.error('[AIChat] Error creating mockup:', error);
+      }
+    };
+
+    ipcRenderer.on('agent:createMockup', handleCreateMockup);
+
+    return () => {
+      ipcRenderer.removeListener('agent:createMockup', handleCreateMockup);
+    };
+  }, [workspacePath]);
+
+  // Listen for stream events from the agent
+  useEffect(() => {
+    const handleStreamEvent = (_event: any, { streamId, event }: { streamId: string; event: AgentStreamEvent }) => {
+      // Ignore events from old streams
+      if (streamId !== currentStreamId) return;
+
+      // Check if cancelled
+      if (isCancelledRef.current) return;
+
+      switch (event.type) {
+        case 'text':
+          setStreamingText(prev => prev + (event.data || ''));
+          break;
+
+        case 'thinking':
+          setStreamingThinking(prev => prev + (event.data || ''));
+          break;
+
+        case 'tool_use':
+          if (event.requiresConfirmation && event.toolName && event.toolUseId) {
+            // Pause streaming and show tool confirmation
+            const toolCall: ToolCall = {
+              id: event.toolUseId,
+              name: event.toolName,
+              description: getToolDescription(event.toolName, event.toolInput || {}),
+              parameters: event.toolInput || {},
+            };
+            setPendingToolCall({ toolCall, toolUseId: event.toolUseId });
+          }
+          break;
+
+        case 'tool_result':
+          // Add tool result to messages
+          if (event.data) {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: `Tool executed: ${event.toolUseId?.split('-')[0] || 'tool'}`,
+              timestamp: Date.now(),
+              toolResult: event.data,
+            }]);
+          }
+          break;
+
+        case 'error':
+          // Show error message
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: `Error: ${event.data || 'Unknown error'}`,
+            timestamp: Date.now(),
+          }]);
+          setIsLoading(false);
+          break;
+
+        case 'done':
+          // Finalize the streaming message
+          if (streamingText || streamingThinking) {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: 'assistant',
+              content: streamingText,
+              timestamp: Date.now(),
+              thinking: streamingThinking || undefined,
+            }]);
+            setStreamingText('');
+            setStreamingThinking('');
+          }
+          setIsLoading(false);
+          setCurrentStreamId(null);
+          break;
+      }
+    };
+
+    ipcRenderer.on('agent:streamEvent', handleStreamEvent);
+
+    return () => {
+      ipcRenderer.removeListener('agent:streamEvent', handleStreamEvent);
+    };
+  }, [currentStreamId]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     isResizing.current = true;
@@ -180,17 +589,6 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, []);
-  const [pendingToolCall, setPendingToolCall] = useState<{ toolCall: ToolCall; toolUseId: string } | null>(null);
-  const [pendingToolCalls, setPendingToolCalls] = useState<Array<{ toolCall: ToolCall; toolUseId: string; autoExecute: boolean }>>([]);
-  const [collectedToolResults, setCollectedToolResults] = useState<Array<{ toolUseId: string; result: string; isError?: boolean }>>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const claudeClientRef = useRef<ClaudeBedrockClient | null>(null);
-  const isCancelledRef = useRef<boolean>(false);
-
-  // Update workspace path for file tools
-  useEffect(() => {
-    fileSystemTools.setWorkspacePath(workspacePath);
-  }, [workspacePath]);
 
   const scrollToBottom = useCallback(() => {
     // Use setTimeout to ensure DOM is updated before scrolling
@@ -202,7 +600,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, scrollToBottom, streamingText]);
 
   // Also scroll when loading state changes (typing indicator appears/disappears)
   useEffect(() => {
@@ -214,177 +612,18 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
     scrollToBottom();
   }, [pendingToolCall, scrollToBottom]);
 
-  // Ref to hold the process function to avoid closure issues
-  const processPendingToolCallsRef = useRef<((
-    tools: Array<{ toolCall: ToolCall; toolUseId: string; autoExecute: boolean }>,
-    results: Array<{ toolUseId: string; result: string; isError?: boolean }>
-  ) => Promise<void>) | null>(null);
-
-  // Internal handler for Claude responses
-  const handleClaudeResponseInternal = useCallback(async (response: { text: string; thinking?: string; toolUse?: ClaudeToolCall; toolUses?: ClaudeToolCall[]; stopReason: string }) => {
-    // Check if cancelled - ignore response if so
-    if (isCancelledRef.current) {
-      console.log('[AIChat] Response ignored - cancelled');
-      return;
-    }
-    
-    // Add text response if any
-    if (response.text || response.thinking) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: response.text || '',
-        timestamp: Date.now(),
-        thinking: response.thinking
-      }]);
-      scrollToBottom();
-    }
-
-    // Handle multiple tool calls
-    const toolCalls = response.toolUses || (response.toolUse ? [response.toolUse] : []);
-    
-    if (toolCalls.length === 0) return;
-
-    // Check if ALL tools are auto-execute (no permission required)
-    const allAutoExecute = toolCalls.every(t => isAutoExecuteTool(t.name));
-
-    if (allAutoExecute) {
-      // All tools can auto-execute - execute all and send results together
-      const results: Array<{ toolUseId: string; result: string; isError?: boolean }> = [];
-      
-      for (const tool of toolCalls) {
-        // Check cancellation before each tool
-        if (isCancelledRef.current) {
-          console.log('[AIChat] Tool execution cancelled');
-          return;
-        }
-        
-        const toolCall: ToolCall = {
-          id: tool.id,
-          name: tool.name,
-          description: getToolDescription(tool.name, tool.input),
-          parameters: tool.input
-        };
-        
-        const result = await executeToolCall(toolCall);
-        results.push({
-          toolUseId: tool.id,
-          result: result.success ? result.output : `Error: ${result.error}`,
-          isError: !result.success
-        });
-      }
-
-      // Check cancellation before sending results
-      if (isCancelledRef.current) return;
-
-      // Send all results together
-      if (claudeClientRef.current && results.length > 0) {
-        try {
-          const nextResponse = await claudeClientRef.current.sendMultipleToolResults(results);
-          if (isCancelledRef.current) return;
-          await handleClaudeResponseInternal(nextResponse);
-        } catch (error: any) {
-          if (isCancelledRef.current || error.name === 'AbortError') return;
-          throw error;
-        }
-      }
-      return;
-    }
-
-    // Some tools need permission - process them with our helper
-    const toolsToProcess = toolCalls.map(t => ({
-      toolCall: {
-        id: t.id,
-        name: t.name,
-        description: getToolDescription(t.name, t.input),
-        parameters: t.input
-      },
-      toolUseId: t.id,
-      autoExecute: isAutoExecuteTool(t.name)
-    }));
-
-    if (processPendingToolCallsRef.current) {
-      await processPendingToolCallsRef.current(toolsToProcess, []);
-    }
-  }, [scrollToBottom]);
-
-  // Process pending tool calls
-  const processPendingToolCalls = useCallback(async (
-    tools: Array<{ toolCall: ToolCall; toolUseId: string; autoExecute: boolean }>,
-    results: Array<{ toolUseId: string; result: string; isError?: boolean }>
-  ) => {
-    // Check if cancelled
-    if (isCancelledRef.current) {
-      console.log('[AIChat] Tool processing cancelled');
-      return;
-    }
-    
-    if (tools.length === 0) {
-      // All tools processed, send results
-      if (results.length > 0 && claudeClientRef.current) {
-        setIsLoading(true);
-        try {
-          const response = await claudeClientRef.current.sendMultipleToolResults(results);
-          // Check again after await
-          if (isCancelledRef.current) return;
-          await handleClaudeResponseInternal(response);
-        } catch (error: any) {
-          // Ignore abort errors
-          if (isCancelledRef.current || error.name === 'AbortError') return;
-          console.error('Error sending tool results:', error);
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: `Error: ${error.message}`,
-            timestamp: Date.now()
-          }]);
-        } finally {
-          if (!isCancelledRef.current) {
-            setIsLoading(false);
-          }
-        }
-      }
-      return;
-    }
-
-    const currentTool = tools[0];
-    const remainingTools = tools.slice(1);
-
-    if (currentTool.autoExecute) {
-      // Auto-execute this tool
-      const result = await executeToolCall(currentTool.toolCall);
-      const toolResult = {
-        toolUseId: currentTool.toolUseId,
-        result: result.success ? result.output : `Error: ${result.error}`,
-        isError: !result.success
-      };
-      
-      // Continue processing remaining tools
-      await processPendingToolCalls(remainingTools, [...results, toolResult]);
-    } else {
-      // Need permission - store state and wait for user
-      setPendingToolCalls(remainingTools);
-      setCollectedToolResults(results);
-      setPendingToolCall({ toolCall: currentTool.toolCall, toolUseId: currentTool.toolUseId });
-    }
-  }, [handleClaudeResponseInternal]);
-
-  // Update ref when processPendingToolCalls changes
-  useEffect(() => {
-    processPendingToolCallsRef.current = processPendingToolCalls;
-  }, [processPendingToolCalls]);
-
   // Show welcome message when chat opens and no messages exist
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       const modelName = settings.bedrockModel?.includes('opus') ? 'Claude Opus 4.5' : 'Claude Sonnet 4.5';
-      const welcomeMessage = `Hi! I'm your AI assistant powered by ${modelName}.
+      const welcomeMessage = `Hi! I'm your AI assistant powered by ${modelName} (Strands Agents SDK).
 
 I can help you with:
 - Creating and editing product documents
 - Writing PRDs, technical specs, and user stories
 - Reading and analyzing files in your workspace
 - Product strategy and roadmap planning
+- Generating UI mockups and wireframes
 
 How can I help you today?`;
       
@@ -397,159 +636,16 @@ How can I help you today?`;
     }
   }, [isOpen, messages.length, settings.bedrockModel]);
 
-  // Initialize Claude client ONLY when settings change (not on show/hide)
-  useEffect(() => {
-    if (settings.aiEnabled && settings.awsAccessKeyId && settings.awsSecretAccessKey) {
-      // Only create new client if settings actually changed
-      claudeClientRef.current = new ClaudeBedrockClient({
-        region: settings.awsRegion,
-        accessKeyId: settings.awsAccessKeyId,
-        secretAccessKey: settings.awsSecretAccessKey,
-        modelId: settings.bedrockModel,
-        systemPrompt: systemPromptMd
-      });
-    }
-  }, [settings.aiEnabled, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel]);
-
-  // Tools that auto-execute without user permission
-  const AUTO_EXECUTE_TOOLS = ['create_todo_list', 'update_todo', 'read_todo_list', 'read_templates', 'create_mockup'];
-
-  const isAutoExecuteTool = (toolName: string): boolean => {
-    // MCP tools should NOT auto-execute
-    if (toolName.startsWith('mcp_')) return false;
-    return AUTO_EXECUTE_TOOLS.includes(toolName);
-  };
-
-  // Check if tool is an MCP tool
-  const isMCPTool = (toolName: string): boolean => {
-    return toolName.startsWith('mcp_');
-  };
-
-  // Parse MCP tool name to get server and actual tool name
-  const parseMCPToolName = (toolName: string): { serverName: string; toolName: string } | null => {
-    if (!toolName.startsWith('mcp_')) return null;
-    const parts = toolName.substring(4).split('_');
-    if (parts.length < 2) return null;
-    const serverName = parts[0];
-    const actualToolName = parts.slice(1).join('_');
-    return { serverName, toolName: actualToolName };
-  };
-
-  const executeToolCall = async (toolCall: ToolCall): Promise<ToolResult> => {
-    try {
-      console.log('[AIChat] Executing tool:', toolCall.name);
-      console.log('[AIChat] Tool parameters:', JSON.stringify(toolCall.parameters, null, 2));
-      
-      // Check if this is an MCP tool
-      if (isMCPTool(toolCall.name)) {
-        const parsed = parseMCPToolName(toolCall.name);
-        if (!parsed) {
-          return { success: false, error: 'Invalid MCP tool name', output: '' };
-        }
-        
-        // Call MCP tool via IPC
-        const result = await ipcRenderer.invoke('mcp:callTool', parsed.serverName, parsed.toolName, toolCall.parameters);
-        
-        if (result.success) {
-          // Format MCP result
-          const content = result.result?.content;
-          let output = '';
-          if (Array.isArray(content)) {
-            output = content.map((c: any) => c.text || JSON.stringify(c)).join('\n');
-          } else if (typeof content === 'string') {
-            output = content;
-          } else {
-            output = JSON.stringify(result.result, null, 2);
-          }
-          return { success: true, output, error: '' };
-        } else {
-          return { success: false, error: result.error, output: '' };
-        }
-      }
-      
-      // Built-in tool
-      return await fileSystemTools.executeTool(toolCall.name, toolCall.parameters);
-    } catch (error: any) {
-      return { success: false, error: error.message, output: '' };
-    }
-  };
-
-  const handleToolAccept = async () => {
-    if (!pendingToolCall) return;
-
-    const { toolCall, toolUseId } = pendingToolCall;
-    setPendingToolCall(null);
-
-    try {
-      // Execute the tool
-      const result = await executeToolCall(toolCall);
-      const resultText = result.success ? result.output : `Error: ${result.error}`;
-
-      // Update UI with tool result
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `Tool executed: ${toolCall.name}`,
-        timestamp: Date.now(),
-        toolResult: resultText
-      }]);
-      scrollToBottom();
-
-      // Add to collected results
-      const toolResult = {
-        toolUseId: toolUseId,
-        result: resultText,
-        isError: !result.success
-      };
-
-      // Continue processing remaining tools (or send all results if done)
-      const newResults = [...collectedToolResults, toolResult];
-      setCollectedToolResults([]);
-      await processPendingToolCalls(pendingToolCalls, newResults);
-    } catch (error: any) {
-      console.error('Tool execution error:', error);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: `Error executing tool: ${error.message}`,
-        timestamp: Date.now()
-      }]);
-    }
-  };
-
-  const handleToolDeny = async () => {
-    if (!pendingToolCall) return;
-
-    const { toolUseId } = pendingToolCall;
-    setPendingToolCall(null);
-
-    // Add denial as error result
-    const toolResult = {
-      toolUseId: toolUseId,
-      result: 'User denied this tool execution. Please proceed without this action or suggest an alternative.',
-      isError: true
-    };
-
-    // Continue processing remaining tools (or send all results if done)
-    const newResults = [...collectedToolResults, toolResult];
-    setCollectedToolResults([]);
-    await processPendingToolCalls(pendingToolCalls, newResults);
-  };
-
-  const handleClaudeResponse = async (response: { text: string; toolUse?: ClaudeToolCall; toolUses?: ClaudeToolCall[]; stopReason: string }) => {
-    await handleClaudeResponseInternal(response);
-  };
-
   const getToolDescription = (name: string, params: Record<string, any>): string => {
     // Handle MCP tools
     if (name.startsWith('mcp_')) {
-      const parsed = parseMCPToolName(name);
-      if (parsed) {
-        const paramStr = Object.keys(params).length > 0 
-          ? ` with ${JSON.stringify(params)}` 
-          : '';
-        return `[MCP: ${parsed.serverName}] ${parsed.toolName}${paramStr}`;
-      }
+      const parts = name.substring(4).split('_');
+      const serverName = parts[0];
+      const toolName = parts.slice(1).join('_');
+      const paramStr = Object.keys(params).length > 0 
+        ? ` with ${JSON.stringify(params)}` 
+        : '';
+      return `[MCP: ${serverName}] ${toolName}${paramStr}`;
     }
     
     switch (name) {
@@ -570,16 +666,40 @@ How can I help you today?`;
     }
   };
 
+  const handleToolAccept = async () => {
+    if (!pendingToolCall) return;
+    setPendingToolCall(null);
+    // Tool will be executed automatically by the agent
+  };
+
+  const handleToolDeny = async () => {
+    if (!pendingToolCall) return;
+    setPendingToolCall(null);
+    // Abort the current stream since user denied the tool
+    await ipcRenderer.invoke('agent:abort');
+    setIsLoading(false);
+    setCurrentStreamId(null);
+    
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: 'Tool execution cancelled by user.',
+      timestamp: Date.now(),
+    }]);
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    if (!settings.aiEnabled || !claudeClientRef.current) {
+    if (!settings.aiEnabled || !agentInitializedRef.current) {
       alert('Please enable and configure Collie in Settings first.');
       return;
     }
 
     // Reset cancellation flag for new request
     isCancelledRef.current = false;
+    setStreamingText('');
+    setStreamingThinking('');
 
     // Parse @mentions from input
     const { cleanedText: textAfterMentions, mentionedStakeholders } = parseStakeholderContext(input);
@@ -614,49 +734,22 @@ How can I help you today?`;
     setIsLoading(true);
 
     try {
-      // Send message with context including MCP servers and stakeholders
-      const response = await claudeClientRef.current.sendMessage(messageToSend, {
+      // Start streaming via IPC
+      const { streamId } = await ipcRenderer.invoke('agent:stream', messageToSend, {
         workspacePath: workspacePath || undefined,
         currentFile: currentFile?.path,
-        mcpServers: mcpServers.length > 0 ? mcpServers : undefined
       });
-
-      // Check if cancelled before processing response
-      if (isCancelledRef.current) {
-        console.log('[AIChat] Response ignored - request was cancelled');
-        return;
-      }
-
-      await handleClaudeResponse(response);
+      
+      setCurrentStreamId(streamId);
     } catch (error: any) {
-      // Ignore errors if cancelled (including AbortError)
-      if (isCancelledRef.current || error.name === 'AbortError') {
-        console.log('[AIChat] Request cancelled/aborted');
-        return;
-      }
-      
       console.error('AI Chat error:', error);
-      let errorContent = 'Sorry, I encountered an error. ';
-      
-      if (error.name === 'AccessDeniedException') {
-        errorContent += 'Please check your AWS credentials and permissions in Settings.';
-      } else if (error.name === 'ThrottlingException') {
-        errorContent += 'Too many requests. Please wait a moment and try again.';
-      } else {
-        errorContent += error.message || 'Please try again.';
-      }
-
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: errorContent,
+        content: `Error: ${error.message || 'Please try again.'}`,
         timestamp: Date.now()
       }]);
-    } finally {
-      // Only reset loading if not cancelled (handleStop handles that)
-      if (!isCancelledRef.current) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
@@ -876,7 +969,15 @@ How can I help you today?`;
       return `- ${t.name} (${t.id}): ${desc}`;
     }).join('\n');
     
-    return `[TEMPLATE REQUEST: The user wants to create the following document type(s). Please generate content following the appropriate template format. Use the write_file tool to create the file in the workspace.\n${templateLines}]\n\n`;
+    return `[DOCUMENT REQUEST: The user wants you to WRITE A NEW DOCUMENT using the following template(s) as a format guide:
+${templateLines}
+
+Instructions:
+1. First, use read_templates to load the template structure
+2. Then WRITE A COMPLETE DOCUMENT following that template's format, filled with actual content based on the user's request and project context
+3. Save the document to the workspace using write_file with a .prd extension
+
+You are NOT creating a template - you are using the template as a blueprint to write a real document.]\n\n`;
   };
 
   // Build stakeholder context string for AI
@@ -888,7 +989,7 @@ How can I help you today?`;
   };
 
   // Stop/cancel the current agent flow and remove last user message
-  const handleStop = () => {
+  const handleStop = async () => {
     if (!isLoading) return;
     
     console.log('[AIChat] Stopping current request...');
@@ -896,11 +997,8 @@ How can I help you today?`;
     // Set cancellation flag FIRST - this prevents any async operations from continuing
     isCancelledRef.current = true;
     
-    // Abort the current API request
-    claudeClientRef.current?.abort();
-    
-    // Remove the last user message from Claude's history
-    claudeClientRef.current?.removeLastMessage();
+    // Abort the agent request
+    await ipcRenderer.invoke('agent:abort');
     
     // Remove the last user message from UI
     setMessages(prev => {
@@ -913,10 +1011,11 @@ How can I help you today?`;
       return prev;
     });
     
-    // Clear any pending operations
+    // Clear pending state
     setPendingToolCall(null);
-    setPendingToolCalls([]);
-    setCollectedToolResults([]);
+    setStreamingText('');
+    setStreamingThinking('');
+    setCurrentStreamId(null);
     
     // Reset loading state immediately
     setIsLoading(false);
@@ -924,26 +1023,28 @@ How can I help you today?`;
     console.log('[AIChat] Request stopped');
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     if (messages.length <= 1 || confirm('Are you sure you want to start a new chat? This will stop the current agent and clear all history.')) {
       // Set cancellation flag to stop any async operations
       isCancelledRef.current = true;
       
       // Stop any running operations
-      claudeClientRef.current?.abort();
+      await ipcRenderer.invoke('agent:abort');
       setIsLoading(false);
       
-      // Clear Claude history
-      claudeClientRef.current?.clearHistory();
+      // Clear agent history
+      await ipcRenderer.invoke('agent:clearHistory');
       
       // Clear all state - set to empty, then useEffect will add welcome message
       setPendingToolCall(null);
-      setPendingToolCalls([]);
-      setCollectedToolResults([]);
+      setStreamingText('');
+      setStreamingThinking('');
+      setCurrentStreamId(null);
       setInput('');
       
       // Clear todos
-      fileSystemTools.clearTodos();
+      await ipcRenderer.invoke('agent:clearTodos');
+      setTodos([]);
       
       // Set messages to empty to trigger welcome message via useEffect
       setMessages([]);
@@ -1026,6 +1127,25 @@ How can I help you today?`;
           </div>
         ))}
 
+        {/* Streaming message in progress */}
+        {(streamingText || streamingThinking) && (
+          <div className="ai-message assistant">
+            <div className="ai-message-avatar">
+              <img src={aiAvatarIcon} alt="AI" />
+            </div>
+            <div className="ai-message-content">
+              {streamingThinking && (
+                <ThinkingText thinking={streamingThinking} />
+              )}
+              {streamingText && (
+                <div className="ai-message-text">
+                  <ReactMarkdown>{streamingText}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Pending tool call confirmation */}
         {pendingToolCall && (
           <div className="ai-message assistant">
@@ -1040,7 +1160,7 @@ How can I help you today?`;
           </div>
         )}
 
-        {isLoading && !pendingToolCall && (
+        {isLoading && !pendingToolCall && !streamingText && !streamingThinking && (
           <div className="ai-message assistant">
             <div className="ai-message-avatar"><img src={aiAvatarIcon} alt="AI" /></div>
             <div className="ai-message-content">
