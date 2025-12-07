@@ -24,52 +24,28 @@ export const DEFAULT_SETTINGS: AppSettings = {
   awsRegion: 'us-east-1',
   awsAccessKeyId: '',
   awsSecretAccessKey: '',
-  bedrockModel: 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+  bedrockModel: 'global.anthropic.claude-opus-4-5-20251101-v1:0',
   // OpenAI defaults
   openaiApiKey: '',
-  openaiModel: 'gpt-4o',
+  openaiModel: 'gpt-5.1',
   openaiBaseUrl: '',
 };
 
 export const BEDROCK_MODELS = [
   {
-    id: 'us.anthropic.claude-sonnet-4-20250514-v1:0',
-    name: 'Claude Sonnet 4'
-  },
-  {
-    id: 'us.anthropic.claude-opus-4-20250514-v1:0',
-    name: 'Claude Opus 4'
+    id: 'global.anthropic.claude-opus-4-5-20251101-v1:0',
+    name: 'Claude Opus 4.5'
   }
 ];
 
 export const OPENAI_MODELS = [
   {
+    id: 'gpt-5.1',
+    name: 'GPT-5.1'
+  },
+  {
     id: 'gpt-4o',
     name: 'GPT-4o'
-  },
-  {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini'
-  },
-  {
-    id: 'gpt-4-turbo',
-    name: 'GPT-4 Turbo'
-  },
-  {
-    id: 'o1',
-    name: 'o1'
-  },
-  {
-    id: 'o1-mini',
-    name: 'o1 Mini'
-  },
-  {
-    id: 'o3',
-    name: 'o3'
-  },
-  {
-    id: 'o3-mini',
-    name: 'o3 Mini'
   }
 ];
 

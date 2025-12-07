@@ -87,7 +87,7 @@ export class StrandsAgentService extends EventEmitter {
       // Create OpenAI model
       const openaiConfig: any = {
         apiKey: config.openaiApiKey,
-        modelId: config.openaiModelId || 'gpt-4o',
+        modelId: config.openaiModelId || 'gpt-5.1',
         maxTokens: 4096,
       };
       
