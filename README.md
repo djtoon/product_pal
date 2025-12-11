@@ -1,4 +1,4 @@
-# Collie 🐕
+# Collie
 
 **AI-powered document editor for Product Managers.** Create, edit, and manage product documentation with a powerful, modern interface and built-in AI assistant.
 
@@ -6,9 +6,9 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/danshamir/collie/releases)
 
-## ✨ Features
+## Features
 
-### 🤖 AI Assistant
+### AI Assistant
 - **Multi-Provider Support**: Choose between AWS Bedrock (Claude) or OpenAI (GPT)
 - **Smart Document Generation**: Create PRDs, Technical Specs, and User Stories with AI assistance
 - **Context-Aware**: AI understands your workspace and current document
@@ -16,27 +16,27 @@
 - **Real-time Streaming**: See AI responses as they're generated
 - **Task Tracking**: Built-in todo list for AI-assisted workflows
 
-### 📝 Document Editor
+### Document Editor
 - **Monaco Editor**: Same powerful editor as VSCode with syntax highlighting
 - **Markdown Preview**: Real-time side-by-side preview for markdown files
 - **Document Templates**: Pre-built templates for PRDs, Technical Specs, User Stories, Kanban boards, and Timelines
 - **Multi-tab Editing**: Work on multiple documents simultaneously
 
-### 📁 File Management
+### File Management
 - **Workspace Navigation**: Open and browse project folders
 - **File Tree**: Expandable/collapsible directory structure
 - **Full CRUD**: Create, rename, delete, and copy files/folders
 - **File Watching**: Auto-refresh when external changes are detected
 - **Drag & Drop**: Reorganize files easily
 
-### ⚡ Productivity
+### Productivity
 - **Command Palette**: Quick access to all features (`Ctrl+Shift+P`)
 - **Keyboard Shortcuts**: Familiar VSCode-style shortcuts
 - **Auto-save**: Never lose your work
 - **Custom Themes**: Choose your preferred color scheme
 - **Frameless Design**: Modern, clean UI with custom title bar
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Download
 Download the latest release from the [Releases](https://github.com/danshamir/collie/releases) page:
@@ -64,7 +64,7 @@ npm run package
 
 See [BUILD.md](BUILD.md) for detailed build instructions.
 
-## ⚙️ Configuration
+## Configuration
 
 ### AI Setup
 1. Open Settings (gear icon or `Ctrl+,`)
@@ -83,9 +83,9 @@ See [BUILD.md](BUILD.md) for detailed build instructions.
 4. Click "Test Connection" to verify
 5. Save settings
 
-> 💡 **Note**: Credentials are stored locally on your machine and never transmitted anywhere except to the AI provider.
+> **Note**: Credentials are stored locally on your machine and never transmitted anywhere except to the AI provider.
 
-## ⌨️ Keyboard Shortcuts
+## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
@@ -96,7 +96,7 @@ See [BUILD.md](BUILD.md) for detailed build instructions.
 | `Ctrl+F` | Find in File |
 | `Ctrl+,` | Open Settings |
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Electron 32** - Desktop application framework
 - **React 18** - UI library
@@ -107,7 +107,7 @@ See [BUILD.md](BUILD.md) for detailed build instructions.
 - **OpenAI SDK** - GPT integration
 - **Webpack** - Module bundler
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 collie/
@@ -127,7 +127,7 @@ collie/
 └── release/               # Packaged executables
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [ ] macOS and Linux builds
 - [ ] Git integration for version control
@@ -138,25 +138,25 @@ collie/
 - [ ] Cloud sync
 - [ ] Collaborative editing
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Feel free to:
 - Report bugs
 - Suggest features
 - Submit pull requests
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
 Feel free to use this project as a starting point for your own applications.
 
-## 👤 Author
+## Author
 
 **Dan Shamir**
 
 ---
 
 <p align="center">
-  Built with ❤️ for Product Managers
+  Built for Product Managers
 </p>
