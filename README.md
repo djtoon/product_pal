@@ -1,67 +1,91 @@
-# Collie
+# Collie 🐕
 
-AI-powered document editor for Product Managers. Create, edit, and manage product documentation with a powerful, modern interface and built-in AI assistant.
+**AI-powered document editor for Product Managers.** Create, edit, and manage product documentation with a powerful, modern interface and built-in AI assistant.
 
-![Collie](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/danshamir/collie/releases)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/danshamir/collie/releases)
 
-## Features
+## ✨ Features
 
-### 🎯 Built for Product Managers
-- **Document Templates**: Pre-built templates for PRDs, Technical Specs, and User Stories
-- **Rich Editor**: Monaco Editor (same as VSCode) with syntax highlighting
-- **Markdown Support**: Real-time preview for markdown documents
-- **Command Palette**: Quick access to all features (Ctrl+Shift+P)
+### 🤖 AI Assistant
+- **Multi-Provider Support**: Choose between AWS Bedrock (Claude) or OpenAI (GPT)
+- **Smart Document Generation**: Create PRDs, Technical Specs, and User Stories with AI assistance
+- **Context-Aware**: AI understands your workspace and current document
+- **Tool Integration**: AI can read/write files, create directories, and manage tasks
+- **Real-time Streaming**: See AI responses as they're generated
+- **Task Tracking**: Built-in todo list for AI-assisted workflows
+
+### 📝 Document Editor
+- **Monaco Editor**: Same powerful editor as VSCode with syntax highlighting
+- **Markdown Preview**: Real-time side-by-side preview for markdown files
+- **Document Templates**: Pre-built templates for PRDs, Technical Specs, User Stories, Kanban boards, and Timelines
+- **Multi-tab Editing**: Work on multiple documents simultaneously
 
 ### 📁 File Management
-- Open and navigate workspace folders
-- File tree with expand/collapse
-- Create, rename, and delete files/folders
-- Support for .md, .txt, .prd and more
+- **Workspace Navigation**: Open and browse project folders
+- **File Tree**: Expandable/collapsible directory structure
+- **Full CRUD**: Create, rename, delete, and copy files/folders
+- **File Watching**: Auto-refresh when external changes are detected
+- **Drag & Drop**: Reorganize files easily
 
-### ✨ Developer Experience
-- Auto-save on Ctrl+S
-- Multiple file tabs
-- Status bar with file information
-- Keyboard shortcuts
-- Modern, clean UI inspired by VSCode
+### ⚡ Productivity
+- **Command Palette**: Quick access to all features (`Ctrl+Shift+P`)
+- **Keyboard Shortcuts**: Familiar VSCode-style shortcuts
+- **Auto-save**: Never lose your work
+- **Custom Themes**: Choose your preferred color scheme
+- **Frameless Design**: Modern, clean UI with custom title bar
 
-## Quick Start
+## 🚀 Quick Start
 
-### Installation
+### Download
+Download the latest release from the [Releases](https://github.com/danshamir/collie/releases) page:
+- **Setup Installer**: `Collie-0.1.0-Setup.exe` - Standard installation
+- **Portable**: `Collie-0.1.0-Portable.exe` - No installation required
+
+### Build from Source
 
 ```bash
+# Clone the repository
+git clone https://github.com/danshamir/collie.git
+cd collie
+
 # Install dependencies
 npm install
 
 # Run in development mode
-npm run dev  # In terminal 1
-npm start    # In terminal 2
-```
+npm run dev    # Terminal 1: Watch & compile
+npm start      # Terminal 2: Run app
 
-### Build for Production
-
-```bash
-# Build the app
+# Build for production
 npm run build
-
-# Package for Windows
 npm run package
 ```
 
 See [BUILD.md](BUILD.md) for detailed build instructions.
 
-## Usage
+## ⚙️ Configuration
 
-1. **Open a Folder**: File > Open Folder (Ctrl+O)
-2. **Create Documents**: Use templates via Templates menu or Command Palette
-3. **Edit Files**: Click files in the sidebar to open them
-4. **Preview Markdown**: Click the preview button for .md files
-5. **Save Changes**: Ctrl+S
+### AI Setup
+1. Open Settings (gear icon or `Ctrl+,`)
+2. Enable AI Assistant
+3. Choose your provider:
 
-See [GETTING_STARTED.md](GETTING_STARTED.md) for a complete guide.
+**AWS Bedrock (Claude)**
+- Enter your AWS Access Key ID and Secret Access Key
+- Select your preferred AWS region
+- IAM user needs `bedrock:InvokeModel` permission
 
-## Keyboard Shortcuts
+**OpenAI**
+- Enter your OpenAI API key
+- Optionally configure a custom base URL for compatible APIs
+
+4. Click "Test Connection" to verify
+5. Save settings
+
+> 💡 **Note**: Credentials are stored locally on your machine and never transmitted anywhere except to the AI provider.
+
+## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
@@ -70,55 +94,69 @@ See [GETTING_STARTED.md](GETTING_STARTED.md) for a complete guide.
 | `Ctrl+S` | Save File |
 | `Ctrl+Shift+P` | Command Palette |
 | `Ctrl+F` | Find in File |
+| `Ctrl+,` | Open Settings |
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Electron 32+**: Desktop application framework
-- **React 18**: UI library
-- **TypeScript**: Type-safe development
-- **Monaco Editor**: Rich code editor
-- **Webpack**: Module bundler
-- **Marked**: Markdown parser
+- **Electron 32** - Desktop application framework
+- **React 18** - UI library
+- **TypeScript** - Type-safe development
+- **Monaco Editor** - Rich code editor (VSCode's editor)
+- **Strands Agents SDK** - AI agent framework
+- **AWS SDK** - Bedrock integration
+- **OpenAI SDK** - GPT integration
+- **Webpack** - Module bundler
 
-## Project Structure
+## 📁 Project Structure
 
 ```
-product_pal/
+collie/
 ├── src/
 │   ├── main/              # Electron main process
-│   ├── renderer/          # React UI components
+│   │   ├── main.ts        # App entry point
+│   │   ├── ipc-handlers.ts # IPC communication
+│   │   └── strands-agent.ts # AI agent implementation
+│   ├── renderer/          # React UI
 │   │   ├── components/    # UI components
-│   │   ├── templates/     # Document templates
-│   │   └── styles/        # CSS styles
-│   └── shared/            # Shared TypeScript types
+│   │   ├── context/       # React context
+│   │   ├── styles/        # CSS styles
+│   │   └── templates/     # Document templates
+│   └── shared/            # Shared types & settings
+├── templates/             # User-accessible templates
 ├── dist/                  # Build output
-└── release/              # Packaged apps
+└── release/               # Packaged executables
 ```
 
-## Contributing
+## 🗺️ Roadmap
 
-Contributions are welcome! This is a prototype application built to demonstrate VSCode-like functionality for product managers.
+- [ ] macOS and Linux builds
+- [ ] Git integration for version control
+- [ ] PDF export
+- [ ] MCP (Model Context Protocol) server support
+- [ ] Custom template creation UI
+- [ ] Plugin/extension system
+- [ ] Cloud sync
+- [ ] Collaborative editing
 
-## License
+## 🤝 Contributing
 
-MIT License - feel free to use this project as a starting point for your own applications.
+Contributions are welcome! Feel free to:
+- Report bugs
+- Suggest features
+- Submit pull requests
 
-## Future Enhancements
+## 📄 License
 
-- Git integration for version control
-- PDF export for documents
-- Team collaboration features
-- Plugin/extension system
-- Custom themes
-- AI-powered writing assistance
-- Cloud sync
-- Comments and annotations
+MIT License - see [LICENSE](LICENSE) for details.
 
-## Support
+Feel free to use this project as a starting point for your own applications.
 
-For issues or questions, please check the [BUILD.md](BUILD.md) troubleshooting section.
+## 👤 Author
+
+**Dan Shamir**
 
 ---
 
-Built with ❤️ for Product Managers
-
+<p align="center">
+  Built with ❤️ for Product Managers
+</p>
