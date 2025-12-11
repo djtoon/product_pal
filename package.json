@@ -3,8 +3,18 @@
   "version": "0.1.0",
   "description": "Collie - AI-powered document editor for Product Managers",
   "main": "dist/main/main.js",
-  "author": "Collie Team",
+  "author": {
+    "name": "Dan Shamir"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danshamir/collie.git"
+  },
+  "bugs": {
+    "url": "https://github.com/danshamir/collie/issues"
+  },
+  "homepage": "https://github.com/danshamir/collie#readme",
   "scripts": {
     "start": "webpack --config webpack.config.js && electron .",
     "dev": "webpack --config webpack.config.js --mode development --watch",
