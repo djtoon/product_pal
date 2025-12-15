@@ -7,11 +7,13 @@ import KanbanEditor from './KanbanEditor';
 import TimelineEditor from './TimelineEditor';
 import MediaViewer, { isMediaFile, getMediaType } from './MediaViewer';
 import { EditorFile } from '../../shared/types';
+import { marked } from 'marked';
 
 // Import icons
 import welcomeIcon from '../assets/icons/weclome.svg';
 
 const { ipcRenderer } = window.require('electron');
+const path = window.require('path');
 
 const EditorPane: React.FC = () => {
   const { currentFile, openFiles, setCurrentFile, closeFile, updateFileContent } = useAppContext();
@@ -34,6 +36,8 @@ const EditorPane: React.FC = () => {
   const isMedia = currentFile ? isMediaFile(currentFile.path) : false;
   const mediaType = currentFile ? getMediaType(currentFile.path) : 'unknown';
 
+  const [isExporting, setIsExporting] = useState(false);
+
   const saveCurrentFile = useCallback(async () => {
     const file = currentFileRef.current;
     if (!file) return;
@@ -44,6 +48,99 @@ const EditorPane: React.FC = () => {
       console.log('File saved successfully:', file.path);
     } catch (error) {
       console.error('Error saving file:', error);
+    }
+  }, []);
+
+  const exportToPdf = useCallback(async () => {
+    const file = currentFileRef.current;
+    if (!file) return;
+
+    setIsExporting(true);
+    try {
+      // Parse markdown to HTML
+      const htmlContent = await marked.parse(file.content);
+      
+      // Get the directory and base name of the current file
+      const dir = path.dirname(file.path);
+      const baseName = path.basename(file.path, path.extname(file.path));
+      
+      // Find unique filename
+      let pdfPath = path.join(dir, `${baseName}.pdf`);
+      let counter = 1;
+      while (await ipcRenderer.invoke('fs:exists', pdfPath)) {
+        pdfPath = path.join(dir, `${baseName}_${counter}.pdf`);
+        counter++;
+      }
+
+      // Create a hidden iframe to render the HTML and print to PDF
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '800px';
+      iframe.style.height = '600px';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Could not access iframe document');
+
+      // Write styled HTML content
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+              line-height: 1.6;
+              padding: 40px;
+              max-width: 800px;
+              margin: 0 auto;
+              color: #333;
+            }
+            h1 { font-size: 2em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+            h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 24px; }
+            h3 { font-size: 1.25em; margin-top: 20px; }
+            p { margin: 12px 0; }
+            ul, ol { margin: 12px 0; padding-left: 24px; }
+            li { margin: 6px 0; }
+            code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+            pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
+            pre code { background: none; padding: 0; }
+            blockquote { border-left: 4px solid #ddd; margin: 16px 0; padding-left: 16px; color: #666; }
+            table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+            th { background: #f4f4f4; }
+            hr { border: none; border-top: 1px solid #eee; margin: 24px 0; }
+          </style>
+        </head>
+        <body>${htmlContent}</body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      // Wait for content to render
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Use Electron's printToPDF via IPC
+      const pdfData = await ipcRenderer.invoke('export:pdf', {
+        htmlContent: iframeDoc.documentElement.outerHTML,
+        outputPath: pdfPath
+      });
+
+      // Clean up
+      document.body.removeChild(iframe);
+
+      if (pdfData.success) {
+        alert(`PDF exported successfully:\n${pdfPath}`);
+      } else {
+        throw new Error(pdfData.error || 'Export failed');
+      }
+    } catch (error: any) {
+      console.error('Error exporting to PDF:', error);
+      alert(`Failed to export PDF: ${error.message}`);
+    } finally {
+      setIsExporting(false);
     }
   }, []);
 
@@ -92,7 +189,8 @@ const EditorPane: React.FC = () => {
             const fileMediaType = getMediaType(file.path);
             const tabIcon = fileMediaType === 'image' ? '🖼️ ' :
                            fileMediaType === 'video' ? '🎬 ' :
-                           fileMediaType === 'audio' ? '🎵 ' : '';
+                           fileMediaType === 'audio' ? '🎵 ' :
+                           fileMediaType === 'pdf' ? '📄 ' : '';
             return (
               <div
                 key={file.path}
@@ -124,6 +222,18 @@ const EditorPane: React.FC = () => {
                 title={showPreview ? 'Hide Preview' : 'Show Preview'}
               >
                 {showPreview ? '📝 Editor Only' : '👁️ Split Preview'}
+              </button>
+              <button
+                className="export-pdf-btn"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  exportToPdf();
+                }}
+                disabled={isExporting}
+                title="Export to PDF"
+              >
+                {isExporting ? '⏳ Exporting...' : '📄 Export PDF'}
               </button>
             </div>
           )}

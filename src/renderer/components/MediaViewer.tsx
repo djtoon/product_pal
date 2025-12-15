@@ -6,12 +6,13 @@ interface MediaViewerProps {
   fileName: string;
 }
 
-type MediaType = 'image' | 'video' | 'audio' | 'unknown';
+type MediaType = 'image' | 'video' | 'audio' | 'pdf' | 'unknown';
 
 // Supported file extensions
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'svg'];
 const VIDEO_EXTENSIONS = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
 const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'];
+const PDF_EXTENSIONS = ['pdf'];
 
 export const getMediaType = (filePath: string): MediaType => {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
@@ -19,6 +20,7 @@ export const getMediaType = (filePath: string): MediaType => {
   if (IMAGE_EXTENSIONS.includes(ext)) return 'image';
   if (VIDEO_EXTENSIONS.includes(ext)) return 'video';
   if (AUDIO_EXTENSIONS.includes(ext)) return 'audio';
+  if (PDF_EXTENSIONS.includes(ext)) return 'pdf';
   
   return 'unknown';
 };
@@ -240,6 +242,16 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ filePath, fileName }) => {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {mediaType === 'pdf' && (
+          <div className="pdf-container">
+            <iframe
+              src={fileUrl}
+              title={fileName}
+              className="pdf-viewer"
+            />
           </div>
         )}
 

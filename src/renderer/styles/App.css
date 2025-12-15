@@ -98,6 +98,28 @@ body {
   border-color: var(--accent-primary);
 }
 
+.export-pdf-btn {
+  background-color: transparent;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.export-pdf-btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.export-pdf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .editor-tab {
   display: flex;
   align-items: center;

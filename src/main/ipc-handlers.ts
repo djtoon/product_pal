@@ -346,6 +346,51 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
     return true;
   });
 
+  // Export to PDF
+  ipcMain.handle('export:pdf', async (event, { htmlContent, outputPath }) => {
+    try {
+      // Create a hidden window for PDF generation
+      const pdfWindow = new BrowserWindow({
+        show: false,
+        width: 800,
+        height: 600,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+
+      // Load the HTML content
+      await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+      // Wait a bit for content to fully render
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Generate PDF
+      const pdfData = await pdfWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: {
+          top: 0.5,
+          bottom: 0.5,
+          left: 0.5,
+          right: 0.5
+        }
+      });
+
+      // Write PDF to file
+      await fs.writeFile(outputPath, pdfData);
+
+      // Clean up
+      pdfWindow.close();
+
+      return { success: true, path: outputPath };
+    } catch (error: any) {
+      console.error('PDF export error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Save settings to file
   ipcMain.handle('settings:save', async (event, settings: any) => {
     try {
