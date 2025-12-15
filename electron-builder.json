@@ -23,7 +23,7 @@
     "artifactName": "${productName}-${version}-Portable.${ext}"
   },
   "mac": {
-    "target": ["dmg", "zip"],
+    "target": ["dmg"],
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "icon": "assets/icons/icon.png",
     "category": "public.app-category.productivity"

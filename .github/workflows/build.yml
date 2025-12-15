@@ -28,14 +28,21 @@ jobs:
       - name: Package for Windows
         run: npx electron-builder --win --publish never
 
-      - name: Upload Windows artifacts
+      - name: Upload Windows Setup
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: |
-            release/*.exe
-            release/*.yml
+          name: Collie-Windows-Setup
+          path: release/*-Setup.exe
           if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Collie-Windows-Portable
+          path: release/*-Portable.exe
+          if-no-files-found: error
+          compression-level: 0
 
   build-macos:
     runs-on: macos-latest
@@ -60,14 +67,13 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload macOS artifacts
+      - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
-          path: |
-            release/*.dmg
-            release/*.zip
+          name: Collie-macOS-DMG
+          path: release/*.dmg
           if-no-files-found: error
+          compression-level: 0
 
   release:
     needs: [build-windows, build-macos]
@@ -76,17 +82,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download Windows artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-build
           path: release
-
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-build
-          path: release
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -94,4 +94,3 @@ jobs:
           files: release/*
           draft: true
           generate_release_notes: true
-
