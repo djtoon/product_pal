@@ -1,5 +1,9 @@
 # Collie
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/djtoon/product_pal/refs/heads/main/assets/icons/icon.png" alt="Collie" width="128" height="128">
+</p>
+
 **AI-powered document editor for Product Managers.** Create, edit, and manage product documentation with a powerful, modern interface and built-in AI assistant.
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/danshamir/collie/releases)

@@ -538,8 +538,17 @@ const AppContent: React.FC = () => {
       
       <SettingsPanel
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSave={(newSettings) => setSettings(newSettings)}
+        onClose={() => {
+          setIsSettingsOpen(false);
+          // Force repaint after settings close (Electron rendering bug workaround)
+          requestAnimationFrame(() => {
+            document.body.style.opacity = '0.999';
+            requestAnimationFrame(() => {
+              document.body.style.opacity = '1';
+            });
+          });
+        }}
+        onSave={setSettings}
       />
 
       <FileNameDialog

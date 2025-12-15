@@ -1,6 +1,37 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 release/
-*.log
-.DS_Store
+*.unpacked/
 
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment and secrets (just in case)
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.json
+settings.json
+
+# Local config that might contain secrets
+.mcp.json
+
+# Temporary files
+*.tmp
+*.temp

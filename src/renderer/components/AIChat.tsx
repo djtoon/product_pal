@@ -120,14 +120,20 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   // Initialize agent when settings change
   useEffect(() => {
     const initializeAgent = async () => {
+      // Reset initialization state when settings change
+      agentInitializedRef.current = false;
+      
       // Check if we have valid credentials for the selected provider
       const hasBedrockCredentials = settings.awsAccessKeyId && settings.awsSecretAccessKey;
       const hasOpenAICredentials = settings.openaiApiKey;
       const isConfigured = settings.aiProvider === 'openai' ? hasOpenAICredentials : hasBedrockCredentials;
 
+      console.log(`[AIChat] Checking agent config - enabled: ${settings.aiEnabled}, provider: ${settings.aiProvider}, configured: ${isConfigured}`);
+
       if (settings.aiEnabled && isConfigured) {
         try {
-          await ipcRenderer.invoke('agent:initialize', {
+          console.log(`[AIChat] Initializing agent with ${settings.aiProvider || 'bedrock'} provider...`);
+          const result = await ipcRenderer.invoke('agent:initialize', {
             provider: settings.aiProvider || 'bedrock',
             // Bedrock settings
             region: settings.awsRegion,
@@ -141,11 +147,19 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
             // Common
             systemPrompt: systemPromptMd,
           });
-          agentInitializedRef.current = true;
-          console.log(`[AIChat] Agent initialized with ${settings.aiProvider || 'bedrock'} provider`);
+          
+          if (result.success) {
+            agentInitializedRef.current = true;
+            console.log(`[AIChat] Agent initialized successfully with ${settings.aiProvider || 'bedrock'} provider`);
+          } else {
+            console.error('[AIChat] Agent initialization returned error:', result.error);
+          }
         } catch (error) {
           console.error('[AIChat] Failed to initialize agent:', error);
+          agentInitializedRef.current = false;
         }
+      } else {
+        console.log('[AIChat] Agent not configured - aiEnabled:', settings.aiEnabled, 'isConfigured:', isConfigured);
       }
     };
 
@@ -615,17 +629,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   // Show welcome message when chat opens and no messages exist
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      const modelName = settings.bedrockModel?.includes('opus') ? 'Claude Opus 4.5' : 'Claude Sonnet 4.5';
-      const welcomeMessage = `Hi! I'm your AI assistant powered by ${modelName} (Strands Agents SDK).
-
-I can help you with:
-- Creating and editing product documents
-- Writing PRDs, technical specs, and user stories
-- Reading and analyzing files in your workspace
-- Product strategy and roadmap planning
-- Generating UI mockups and wireframes
-
-How can I help you today?`;
+      const welcomeMessage = `Hi, I'm Collie! How can I help you today?`;
       
       setMessages([{
         id: Date.now().toString(),
@@ -634,7 +638,37 @@ How can I help you today?`;
         timestamp: Date.now()
       }]);
     }
-  }, [isOpen, messages.length, settings.bedrockModel]);
+  }, [isOpen, messages.length]);
+
+  // Auto-focus input when chat opens
+  useEffect(() => {
+    if (isOpen) {
+      // Force repaint workaround for Electron rendering bug
+      const forceRepaint = () => {
+        if (inputRef.current) {
+          inputRef.current.style.opacity = '0.99';
+          requestAnimationFrame(() => {
+            if (inputRef.current) {
+              inputRef.current.style.opacity = '1';
+            }
+          });
+        }
+      };
+      
+      if (inputRef.current && !pendingToolCall) {
+        const focusInput = () => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            forceRepaint();
+          }
+        };
+        
+        focusInput();
+        setTimeout(focusInput, 100);
+        setTimeout(focusInput, 300);
+      }
+    }
+  }, [isOpen, pendingToolCall, isLoading]);
 
   const getToolDescription = (name: string, params: Record<string, any>): string => {
     // Handle MCP tools
@@ -691,9 +725,46 @@ How can I help you today?`;
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    if (!settings.aiEnabled || !agentInitializedRef.current) {
-      alert('Please enable and configure Collie in Settings first.');
+    if (!settings.aiEnabled) {
+      alert('Please enable AI Assistant in Settings first.');
       return;
+    }
+    
+    if (!agentInitializedRef.current) {
+      console.log('[AIChat] Agent not initialized, attempting to initialize...');
+      // Try to reinitialize
+      try {
+        const hasBedrockCredentials = settings.awsAccessKeyId && settings.awsSecretAccessKey;
+        const hasOpenAICredentials = settings.openaiApiKey;
+        const isConfigured = settings.aiProvider === 'openai' ? hasOpenAICredentials : hasBedrockCredentials;
+        
+        if (!isConfigured) {
+          alert('Please configure your API credentials in Settings first.');
+          return;
+        }
+        
+        const result = await ipcRenderer.invoke('agent:initialize', {
+          provider: settings.aiProvider || 'bedrock',
+          region: settings.awsRegion,
+          accessKeyId: settings.awsAccessKeyId,
+          secretAccessKey: settings.awsSecretAccessKey,
+          bedrockModelId: settings.bedrockModel,
+          openaiApiKey: settings.openaiApiKey,
+          openaiModelId: settings.openaiModel,
+          openaiBaseUrl: settings.openaiBaseUrl,
+          systemPrompt: systemPromptMd,
+        });
+        
+        if (!result.success) {
+          alert(`Failed to initialize AI: ${result.error || 'Unknown error'}`);
+          return;
+        }
+        agentInitializedRef.current = true;
+        console.log('[AIChat] Agent initialized on-demand successfully');
+      } catch (error: any) {
+        alert(`Failed to initialize AI: ${error.message || 'Unknown error'}`);
+        return;
+      }
     }
 
     // Reset cancellation flag for new request
@@ -1202,6 +1273,7 @@ You are NOT creating a template - you are using the template as a blueprint to w
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             onKeyDown={handleInputKeyDown}
+            onClick={() => inputRef.current?.focus()}
             rows={2}
             disabled={!!pendingToolCall}
           />

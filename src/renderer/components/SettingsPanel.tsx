@@ -95,7 +95,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }
       });
 
       await client.send(command);
-      alert('✅ Connection successful! Your AWS Bedrock credentials are working.');
+      alert('Connection successful! Your AWS Bedrock credentials are working.');
+      // Restore focus after alert (Electron focus issue workaround)
+      setTimeout(() => window.focus(), 100);
     } catch (error: any) {
       console.error('Connection test error:', error);
       let errorMessage = '❌ Connection failed!\n\n';
@@ -111,6 +113,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }
       }
       
       alert(errorMessage);
+      // Restore focus after alert (Electron focus issue workaround)
+      setTimeout(() => window.focus(), 100);
     } finally {
       setTestingConnection(false);
     }
@@ -139,7 +143,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }
       });
 
       if (response.ok) {
-        alert('✅ Connection successful! Your OpenAI API key is working.');
+        alert('Connection successful! Your OpenAI API key is working.');
+        setTimeout(() => window.focus(), 100);
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error?.message || `HTTP ${response.status}`);
@@ -159,6 +164,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose, onSave }
       }
       
       alert(errorMessage);
+      setTimeout(() => window.focus(), 100);
     } finally {
       setTestingConnection(false);
     }
