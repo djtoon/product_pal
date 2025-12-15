@@ -8,7 +8,7 @@
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/danshamir/collie/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/danshamir/collie/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/danshamir/collie/releases)
 
 ## Features
 
@@ -44,8 +44,14 @@
 
 ### Download
 Download the latest release from the [Releases](https://github.com/danshamir/collie/releases) page:
-- **Setup Installer**: `Collie-0.1.0-Setup.exe` - Standard installation
-- **Portable**: `Collie-0.1.0-Portable.exe` - No installation required
+
+**Windows**
+- `Collie-0.1.0-Setup.exe` - Standard installation
+- `Collie-0.1.0-Portable.exe` - No installation required
+
+**macOS**
+- `Collie-0.1.0-arm64.dmg` - Apple Silicon (M1/M2/M3)
+- `Collie-0.1.0-x64.dmg` - Intel Macs
 
 ### Build from Source
 
@@ -133,7 +139,7 @@ collie/
 
 ## Roadmap
 
-- [ ] macOS and Linux builds
+- [ ] Linux builds
 - [ ] Git integration for version control
 - [ ] PDF export
 - [ ] MCP (Model Context Protocol) server support
