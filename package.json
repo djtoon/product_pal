@@ -19,7 +19,11 @@
     "start": "webpack --config webpack.config.js && electron .",
     "dev": "webpack --config webpack.config.js --mode development --watch",
     "build": "webpack --config webpack.config.js --mode production",
-    "package": "electron-builder build --win"
+    "package": "electron-builder build --win",
+    "package:win": "electron-builder build --win",
+    "package:mac": "electron-builder build --mac",
+    "package:linux": "electron-builder build --linux",
+    "package:all": "electron-builder build --win --mac --linux"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.490.0",

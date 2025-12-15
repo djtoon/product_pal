@@ -23,10 +23,19 @@
     "artifactName": "${productName}-${version}-Portable.${ext}"
   },
   "mac": {
-    "icon": "assets/icons/icon.icns"
+    "target": ["dmg", "zip"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "icon": "assets/icons/icon.png",
+    "category": "public.app-category.productivity"
+  },
+  "dmg": {
+    "title": "${productName} ${version}",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "linux": {
-    "icon": "assets/icons"
+    "target": ["AppImage", "deb"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "icon": "assets/icons",
+    "category": "Office"
   }
 }
-
