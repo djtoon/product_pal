@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Animated Banner</title>
+  <style>
+    body {
+      width: 1280px;
+      height: 720px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+      background: #000;
+    }
+
+    .background-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .background-layer img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .maincamera {
+      position: absolute;
+      z-index: 10;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      top: 100px;
+      left: 100px;
+      width: 1080px;
+      height: 520px;
+    }
+
+    .headline {
+      font-family: sans-serif;
+      font-size: 60px;
+      font-weight: bold;
+      color: #fff;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .cta-button {
+      width: 220px;
+      height: 70px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 999px;
+      background-color: #FF6B00;
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .sparkle {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: 50%;
+        opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="background-layer" id="background-layer">
+    <img src="https://i.imgur.com/r5Jz3iB.jpg" class="background-image-1" id="background-image-1"
+         alt="Neon-lit city street with a triumphant athlete, vibrant colors, dynamic lighting, energetic atmosphere."
+         data-img-index="1">
+  </div>
+
+  <div class="maincamera">
+    <h1 class="headline" id="headline">SHOP NOW</h1>
+  </div>
+
+  <!-- Sparkles (example - you'll need more and animation) -->
+  <div class="sparkle" id="sparkle-1" style="top: 200px; left: 300px;"></div>
+  <div class="sparkle" id="sparkle-2" style="top: 400px; left: 600px;"></div>
+
+  <script>
+    // Animation JSON will be loaded and applied here (see below)
+  </script>
+
+</body>
+</html>
+```
+
+**JSON (animation.json):**
+
+```json
+{
+  "duration": 5,
+  "fps": 25,
+  "layers": {
+    "background-image-1": { "start_time": 0 },
+    "headline": { "start_time": 0.5, "duration": 4 },
+    "sparkle-1": { "start_time": 1, "duration": 2 },
+    "sparkle-2": { "start_time": 1.5, "duration": 2 }
+  },
+  "animations": {
+    "background-image-1": [],
+    "headline": [
+      {
+        "opacity": [
+          { "time": 0.5, "value": 0 },
+          { "time": 1, "value": 1, "easing": "ease-out" },
+          { "time": 4, "value": 1 },
+          { "time": 4.5, "value": 0, "easing": "ease-in" }
+        ],
+        "translate": [
+          { "time": 0.5, "value": [0, 50] },
+          { "time": 1, "value": [0, 0], "easing": "ease-out" }
+        ]
+      }
+    ],
+    "sparkle-1": [
+      {
+        "opacity": [
+          { "time": 1, "value": 0 },
+          { "time": 1.5, "value": 1, "easing": "ease-out" },
+          { "time": 2.5, "value": 0, "easing": "ease-in" }
+        ],
+        "scale": [
+          { "time": 1, "value": 0 },
+          { "time": 1.5, "value": 1, "easing": "ease-out" },
+          { "time": 2.5, "value": 0, "easing": "ease-in" }
+        ]
+      }
+    ],
+    "sparkle-2": [
+      {
+        "opacity": [
+          { "time": 1.5, "value": 0 },
+          { "time": 2, "value": 1, "easing": "ease-out" },
+          { "time": 3, "value": 0, "easing": "ease-in" }
+        ],
+        "scale": [
+          { "time": 1.5, "value": 0 },
+          { "time": 2, "value": 1, "easing": "ease-out" },
+          { "time": 3, "value": 0, "easing": "ease-in" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**JavaScript (to apply the animation):**
+
+```javascript
+fetch('animation.json')
+  .then(response => response.json())
+  .then(data => {
+    applyAnimation(data);
+  })
+  .catch(error => console.error('Error loading animation:', error));
+
+function applyAnimation(animationData) {
+  const elements = document.querySelectorAll('.headline, .sparkle'); // Select animatable elements
+
+  elements.forEach(element => {
+    const className = element.className.split(' ')[0]; // Get the class name (e.g., 'headline')
+    const animations = animationData.animations[className];
+
+    if (animations) {
+      animations.forEach(animationSet => {
+        for (const property in animationSet) {
+          const keyframes = animationSet[property];
+
+          keyframes.forEach(keyframe => {
+            const time = keyframe.time;
+            const value = keyframe.value;
+            const easing = keyframe.easing || 'linear';
+
+            // Apply the animation using setTimeout
+            setTimeout(() => {
+              if (property === 'opacity') {
+                element.style.opacity = value;
+              } else if (property === 'translate') {
+                element.style.transform = `translate(${value[0]}px, ${value[1]}px)`;
+              } else if (property === 'scale') {
+                element.style.transform = `scale(${value})`;
+              }
+            }, time * 1000); // Convert seconds to milliseconds
+          });
+        }
+      });
+    }
+  });
+}

@@ -37,6 +37,9 @@ export interface AgentConfig {
   openaiApiKey?: string;
   openaiModelId?: string;
   openaiBaseUrl?: string;
+  // Ollama settings (local LLM)
+  ollamaModelId?: string;
+  ollamaBaseUrl?: string;
   // Common
   systemPrompt: string;
 }
@@ -99,6 +102,39 @@ export class StrandsAgentService extends EventEmitter {
       }
       
       model = new OpenAIModelClass(openaiConfig);
+    } else if (config.provider === 'ollama') {
+      // Use OpenAI-compatible API for Ollama (local LLM)
+      console.log('[OLLAMA] Initializing Ollama provider...');
+      console.log('[OLLAMA] Config received:', JSON.stringify({
+        provider: config.provider,
+        ollamaModelId: config.ollamaModelId,
+        ollamaBaseUrl: config.ollamaBaseUrl,
+      }, null, 2));
+      
+      const OpenAIModelClass = await loadOpenAIModel();
+      if (!OpenAIModelClass) {
+        throw new Error('OpenAI model provider is not available. Please check your installation.');
+      }
+
+      // Ollama exposes OpenAI-compatible API at /v1
+      const ollamaBaseUrl = config.ollamaBaseUrl || 'http://localhost:11434';
+      const ollamaModelId = config.ollamaModelId || 'qwen2.5:3b';
+
+      console.log('[OLLAMA] Using model:', ollamaModelId);
+      console.log('[OLLAMA] Using base URL:', ollamaBaseUrl);
+
+      // Create OpenAI model configured for Ollama
+      const ollamaConfig: any = {
+        apiKey: 'ollama', // Ollama doesn't require a real API key
+        modelId: ollamaModelId,
+        maxTokens: 4096,
+        clientConfig: {
+          baseURL: `${ollamaBaseUrl}/v1`,
+        },
+      };
+
+      console.log('[OLLAMA] Final OpenAI config:', JSON.stringify(ollamaConfig, null, 2));
+      model = new OpenAIModelClass(ollamaConfig);
     } else {
       // Set AWS credentials in environment for Bedrock
       process.env.AWS_ACCESS_KEY_ID = config.accessKeyId;
@@ -115,6 +151,8 @@ export class StrandsAgentService extends EventEmitter {
     // Create agent with built-in tools
     // Note: MCP tools integration with Strands TypeScript SDK is still experimental
     // For now, we use only the built-in tools
+    // Create agent with built-in tools
+    // Qwen 3 models support tool calling via OpenAI-compatible API
     this.agent = new Agent({
       model,
       systemPrompt: config.systemPrompt,

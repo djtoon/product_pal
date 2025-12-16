@@ -4,6 +4,10 @@ import * as fss from 'fs';
 import * as path from 'path';
 import { FileItem } from '../shared/types';
 import { strandsAgent, AgentConfig, AgentStreamEvent, TodoItem } from './strands-agent';
+import { ollamaAgent, OllamaAgentConfig } from './ollama-agent';
+
+// Track current provider for routing
+let currentProvider: 'bedrock' | 'openai' | 'ollama' = 'bedrock';
 
 // Get settings file path in user data directory
 const getSettingsPath = () => {
@@ -44,8 +48,14 @@ const notifyFileChange = (mainWindow: BrowserWindow | null) => {
 };
 
 export function setupIpcHandlers(mainWindow?: BrowserWindow) {
-  // Forward todo updates to renderer
+  // Forward todo updates to renderer from both agents
   strandsAgent.on('todosUpdated', (todos: TodoItem[]) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('agent:todosUpdated', todos);
+    }
+  });
+  
+  ollamaAgent.on('todosUpdated', (todos: TodoItem[]) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('agent:todosUpdated', todos);
     }
@@ -65,7 +75,29 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
   // Initialize the agent with config
   ipcMain.handle('agent:initialize', async (event, config: AgentConfig) => {
     try {
-      await strandsAgent.initialize(config);
+      console.log('[IPC] agent:initialize called with config:', JSON.stringify({
+        provider: config.provider,
+        ollamaModelId: config.ollamaModelId,
+        ollamaBaseUrl: config.ollamaBaseUrl,
+        openaiModelId: config.openaiModelId,
+        bedrockModelId: config.bedrockModelId,
+      }, null, 2));
+      
+      currentProvider = config.provider;
+      
+      if (config.provider === 'ollama') {
+        // Use native Ollama agent for proper tool calling support
+        const ollamaConfig: OllamaAgentConfig = {
+          modelId: config.ollamaModelId || 'qwen3:4b',
+          baseUrl: config.ollamaBaseUrl || 'http://localhost:11434',
+          systemPrompt: config.systemPrompt,
+        };
+        await ollamaAgent.initialize(ollamaConfig);
+      } else {
+        // Use Strands agent for Bedrock/OpenAI
+        await strandsAgent.initialize(config);
+      }
+      
       return { success: true };
     } catch (error: any) {
       console.error('Error initializing agent:', error);
@@ -76,26 +108,30 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
   // Set workspace path for the agent
   ipcMain.handle('agent:setWorkspacePath', async (event, workspacePath: string | null) => {
     strandsAgent.setWorkspacePath(workspacePath);
+    ollamaAgent.setWorkspacePath(workspacePath);
     return { success: true };
   });
 
   // Stream agent response - returns a stream ID and sends events via IPC
   ipcMain.handle('agent:stream', async (event, message: string, context?: { workspacePath?: string; currentFile?: string }) => {
     const streamId = Date.now().toString();
-    
+
     // Run streaming in background and send events to renderer
     (async () => {
       try {
-        for await (const streamEvent of strandsAgent.stream(message, context)) {
+        // Route to appropriate agent based on current provider
+        const agent = currentProvider === 'ollama' ? ollamaAgent : strandsAgent;
+        
+        for await (const streamEvent of agent.stream(message, context)) {
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('agent:streamEvent', { streamId, event: streamEvent });
           }
         }
       } catch (error: any) {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('agent:streamEvent', { 
-            streamId, 
-            event: { type: 'error', data: error.message } 
+          mainWindow.webContents.send('agent:streamEvent', {
+            streamId,
+            event: { type: 'error', data: error.message }
           });
         }
       }
@@ -106,24 +142,35 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
 
   // Abort current agent request
   ipcMain.handle('agent:abort', async () => {
-    strandsAgent.abort();
+    if (currentProvider !== 'ollama') {
+      strandsAgent.abort();
+    }
+    // Ollama agent doesn't have abort yet
     return { success: true };
   });
 
   // Clear agent history
   ipcMain.handle('agent:clearHistory', async () => {
-    strandsAgent.clearHistory();
+    if (currentProvider === 'ollama') {
+      ollamaAgent.clearHistory();
+    } else {
+      strandsAgent.clearHistory();
+    }
     return { success: true };
   });
 
   // Get current todos
   ipcMain.handle('agent:getTodos', async () => {
-    return strandsAgent.getTodos();
+    return currentProvider === 'ollama' ? ollamaAgent.getTodos() : strandsAgent.getTodos();
   });
 
   // Clear todos
   ipcMain.handle('agent:clearTodos', async () => {
-    strandsAgent.clearTodos();
+    if (currentProvider === 'ollama') {
+      ollamaAgent.clearTodos();
+    } else {
+      strandsAgent.clearTodos();
+    }
     return { success: true };
   });
 
@@ -416,6 +463,129 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
       }
       console.error('Error loading settings:', error);
       throw error;
+    }
+  });
+
+  // ============================================
+  // OLLAMA HANDLERS (Local LLM) - Using ollama-js library
+  // ============================================
+
+  // Helper to create Ollama client with custom host
+  const createOllamaClient = async (baseUrl?: string) => {
+    const { Ollama } = await import(/* webpackIgnore: true */ 'ollama');
+    return new Ollama({ host: baseUrl || 'http://127.0.0.1:11434' });
+  };
+
+  // Model families that support tool calling
+  // Based on: https://ollama.com/search?c=tools
+  const TOOL_CAPABLE_MODELS = [
+    'qwen3',           // Qwen 3 - all sizes support tools
+    'qwen2.5',         // Qwen 2.5 - supports tools
+    'llama3.1',        // Llama 3.1+
+    'llama3.2',
+    'llama3.3',
+    'mistral',         // Mistral models
+    'mixtral',
+    'command-r',       // Cohere Command R
+    'granite3',        // IBM Granite
+    'nemotron-mini',   // NVIDIA Nemotron
+    'smollm2',         // SmolLM2
+    'firefunction',    // FireFunction
+    'hermes3',         // Hermes 3
+    'athene-v2',       // Athene
+  ];
+
+  // Check if a model name supports tool calling
+  const supportsToolCalling = (modelName: string): boolean => {
+    const lowerName = modelName.toLowerCase();
+    return TOOL_CAPABLE_MODELS.some(pattern => lowerName.startsWith(pattern));
+  };
+
+  // List available Ollama models (filtered to tool-capable only)
+  ipcMain.handle('ollama:list-models', async (event, baseUrl?: string) => {
+    try {
+      const ollama = await createOllamaClient(baseUrl);
+      const response = await ollama.list();
+
+      // Filter to only models that support tool calling
+      const allModels = response.models || [];
+      const toolCapableModels = allModels.filter((m: any) => supportsToolCalling(m.name));
+      
+      const models = toolCapableModels.map((m: any) => ({
+        id: m.name,
+        name: m.name,
+        size: m.size,
+        modifiedAt: m.modified_at,
+      }));
+
+      console.log(`[OLLAMA] Found ${allModels.length} models, ${models.length} support tool calling`);
+
+      return { success: true, models };
+    } catch (error: any) {
+      console.error('Error listing Ollama models:', error);
+      return { success: false, error: error.message, models: [] };
+    }
+  });
+
+  // Check Ollama connection status
+  ipcMain.handle('ollama:check-connection', async (event, baseUrl?: string) => {
+    try {
+      const ollama = await createOllamaClient(baseUrl);
+      // Use list() to verify connection - will throw if Ollama not running
+      await ollama.list();
+      return { success: true, version: 'connected' };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Open Ollama download page
+  ipcMain.handle('ollama:open-download', async () => {
+    const { shell } = require('electron');
+    await shell.openExternal('https://ollama.ai/download');
+    return { success: true };
+  });
+
+  // Pull an Ollama model (streams progress back to renderer)
+  ipcMain.handle('ollama:pull-model', async (event, modelName: string, baseUrl?: string) => {
+    try {
+      const ollama = await createOllamaClient(baseUrl);
+      
+      // Use streaming pull to get progress updates
+      const response = await ollama.pull({ model: modelName, stream: true });
+      
+      for await (const progress of response) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          // Format progress message
+          let progressText = progress.status || '';
+          if (progress.completed && progress.total) {
+            const percent = Math.round((progress.completed / progress.total) * 100);
+            progressText = `${progress.status} ${percent}%`;
+          }
+          
+          mainWindow.webContents.send('ollama:pull-progress', {
+            model: modelName,
+            progress: progressText,
+          });
+        }
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error pulling Ollama model:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Delete/uninstall an Ollama model
+  ipcMain.handle('ollama:delete-model', async (event, modelName: string, baseUrl?: string) => {
+    try {
+      const ollama = await createOllamaClient(baseUrl);
+      await ollama.delete({ model: modelName });
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error deleting Ollama model:', error);
+      return { success: false, error: error.message };
     }
   });
 

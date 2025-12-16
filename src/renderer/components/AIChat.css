@@ -661,6 +661,48 @@
   font-style: italic;
 }
 
+/* Sequential streaming blocks */
+.streaming-block {
+  margin-bottom: 4px;
+}
+
+.streaming-block:last-child {
+  margin-bottom: 0;
+}
+
+/* Tool use block - shows when a tool is being called */
+.tool-use-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #2a3a4a;
+  border-left: 3px solid #4a9eff;
+  border-radius: 4px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.tool-use-block .tool-icon {
+  font-size: 14px;
+}
+
+.tool-use-block .tool-name {
+  color: #4a9eff;
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.tool-use-block .tool-args {
+  color: #888;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Scrollbar */
 .ai-chat-messages::-webkit-scrollbar {
   width: 8px;

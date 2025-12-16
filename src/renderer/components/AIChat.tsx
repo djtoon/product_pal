@@ -88,6 +88,15 @@ interface MessageWithTool extends ChatMessage {
   pendingToolCall?: ToolCall;
   toolResult?: string;
   thinking?: string;
+  blocks?: StreamingBlock[]; // Sequential blocks for thinking/tools/text
+}
+
+// Block types for sequential rendering
+interface StreamingBlock {
+  type: 'thinking' | 'tool_use' | 'tool_result' | 'text';
+  content: string;
+  toolName?: string;
+  toolInput?: Record<string, any>;
 }
 
 const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePath, currentFile, stakeholders = [], templates = [] }) => {
@@ -111,9 +120,14 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   const isResizing = useRef(false);
   const [pendingToolCall, setPendingToolCall] = useState<{ toolCall: ToolCall; toolUseId: string } | null>(null);
   const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
-  const [streamingText, setStreamingText] = useState('');
-  const [streamingThinking, setStreamingThinking] = useState('');
+  const [streamingBlocks, setStreamingBlocks] = useState<StreamingBlock[]>([]);
+  const streamingBlocksRef = useRef<StreamingBlock[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    streamingBlocksRef.current = streamingBlocks;
+  }, [streamingBlocks]);
   const isCancelledRef = useRef<boolean>(false);
   const agentInitializedRef = useRef<boolean>(false);
 
@@ -126,13 +140,19 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
       // Check if we have valid credentials for the selected provider
       const hasBedrockCredentials = settings.awsAccessKeyId && settings.awsSecretAccessKey;
       const hasOpenAICredentials = settings.openaiApiKey;
-      const isConfigured = settings.aiProvider === 'openai' ? hasOpenAICredentials : hasBedrockCredentials;
+      const hasOllamaConfig = settings.ollamaModel; // Ollama doesn't need API keys
+      const isConfigured = settings.aiProvider === 'openai' 
+        ? hasOpenAICredentials 
+        : settings.aiProvider === 'ollama'
+        ? hasOllamaConfig
+        : hasBedrockCredentials;
 
-      console.log(`[AIChat] Checking agent config - enabled: ${settings.aiEnabled}, provider: ${settings.aiProvider}, configured: ${isConfigured}`);
+      console.log(`[AIChat] Checking agent config - enabled: ${settings.aiEnabled}, provider: ${settings.aiProvider}, configured: ${isConfigured}, ollamaModel: ${settings.ollamaModel}`);
 
       if (settings.aiEnabled && isConfigured) {
         try {
           console.log(`[AIChat] Initializing agent with ${settings.aiProvider || 'bedrock'} provider...`);
+          console.log('[AIChat] Agent config - ollamaModel:', settings.ollamaModel, 'ollamaBaseUrl:', settings.ollamaBaseUrl);
           const result = await ipcRenderer.invoke('agent:initialize', {
             provider: settings.aiProvider || 'bedrock',
             // Bedrock settings
@@ -144,6 +164,9 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
             openaiApiKey: settings.openaiApiKey,
             openaiModelId: settings.openaiModel,
             openaiBaseUrl: settings.openaiBaseUrl,
+            // Ollama settings
+            ollamaModelId: settings.ollamaModel,
+            ollamaBaseUrl: settings.ollamaBaseUrl,
             // Common
             systemPrompt: systemPromptMd,
           });
@@ -164,7 +187,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
     };
 
     initializeAgent();
-  }, [settings.aiEnabled, settings.aiProvider, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel, settings.openaiApiKey, settings.openaiModel, settings.openaiBaseUrl]);
+  }, [settings.aiEnabled, settings.aiProvider, settings.awsAccessKeyId, settings.awsSecretAccessKey, settings.awsRegion, settings.bedrockModel, settings.openaiApiKey, settings.openaiModel, settings.openaiBaseUrl, settings.ollamaModel, settings.ollamaBaseUrl]);
 
   // Update workspace path in agent
   useEffect(() => {
@@ -511,11 +534,31 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
 
       switch (event.type) {
         case 'text':
-          setStreamingText(prev => prev + (event.data || ''));
+          // Append to last text block or create new one
+          setStreamingBlocks(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.type === 'text') {
+              // Append to existing text block
+              return [...prev.slice(0, -1), { ...last, content: last.content + (event.data || '') }];
+            } else {
+              // Create new text block
+              return [...prev, { type: 'text', content: event.data || '' }];
+            }
+          });
           break;
 
         case 'thinking':
-          setStreamingThinking(prev => prev + (event.data || ''));
+          // Append to last thinking block or create new one
+          setStreamingBlocks(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.type === 'thinking') {
+              // Append to existing thinking block
+              return [...prev.slice(0, -1), { ...last, content: last.content + (event.data || '') }];
+            } else {
+              // Create new thinking block
+              return [...prev, { type: 'thinking', content: event.data || '' }];
+            }
+          });
           break;
 
         case 'tool_use':
@@ -528,18 +571,23 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
               parameters: event.toolInput || {},
             };
             setPendingToolCall({ toolCall, toolUseId: event.toolUseId });
+          } else if (event.toolName) {
+            // Add tool_use block to show tool being called
+            setStreamingBlocks(prev => [...prev, {
+              type: 'tool_use',
+              content: event.toolName || 'tool',
+              toolName: event.toolName,
+              toolInput: event.toolInput,
+            }]);
           }
           break;
 
         case 'tool_result':
-          // Add tool result to messages
+          // Add tool result block
           if (event.data) {
-            setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              role: 'assistant',
-              content: `Tool executed: ${event.toolUseId?.split('-')[0] || 'tool'}`,
-              timestamp: Date.now(),
-              toolResult: event.data,
+            setStreamingBlocks(prev => [...prev, {
+              type: 'tool_result',
+              content: event.data || '',
             }]);
           }
           break;
@@ -552,21 +600,29 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
             content: `Error: ${event.data || 'Unknown error'}`,
             timestamp: Date.now(),
           }]);
+          setStreamingBlocks([]);
           setIsLoading(false);
           break;
 
         case 'done':
-          // Finalize the streaming message
-          if (streamingText || streamingThinking) {
+          // Finalize the streaming message with all blocks
+          // Use ref to get current blocks (state might be stale in closure)
+          const currentBlocks = streamingBlocksRef.current;
+          if (currentBlocks.length > 0) {
+            // Extract final text content from blocks
+            const textContent = currentBlocks
+              .filter(b => b.type === 'text')
+              .map(b => b.content)
+              .join('');
+            
             setMessages(prev => [...prev, {
               id: Date.now().toString(),
               role: 'assistant',
-              content: streamingText,
+              content: textContent || '(completed)',
               timestamp: Date.now(),
-              thinking: streamingThinking || undefined,
+              blocks: [...currentBlocks], // Copy to avoid mutation issues
             }]);
-            setStreamingText('');
-            setStreamingThinking('');
+            setStreamingBlocks([]);
           }
           setIsLoading(false);
           setCurrentStreamId(null);
@@ -614,7 +670,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom, streamingText]);
+  }, [messages, scrollToBottom, streamingBlocks]);
 
   // Also scroll when loading state changes (typing indicator appears/disappears)
   useEffect(() => {
@@ -736,13 +792,19 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
       try {
         const hasBedrockCredentials = settings.awsAccessKeyId && settings.awsSecretAccessKey;
         const hasOpenAICredentials = settings.openaiApiKey;
-        const isConfigured = settings.aiProvider === 'openai' ? hasOpenAICredentials : hasBedrockCredentials;
+        const hasOllamaConfig = settings.ollamaModel; // Ollama doesn't need API keys
+        const isConfigured = settings.aiProvider === 'openai' 
+          ? hasOpenAICredentials 
+          : settings.aiProvider === 'ollama'
+          ? hasOllamaConfig
+          : hasBedrockCredentials;
         
         if (!isConfigured) {
-          alert('Please configure your API credentials in Settings first.');
+          alert('Please configure your AI provider in Settings first.');
           return;
         }
         
+        console.log('[AIChat] On-demand init - ollamaModel:', settings.ollamaModel, 'ollamaBaseUrl:', settings.ollamaBaseUrl);
         const result = await ipcRenderer.invoke('agent:initialize', {
           provider: settings.aiProvider || 'bedrock',
           region: settings.awsRegion,
@@ -752,6 +814,8 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
           openaiApiKey: settings.openaiApiKey,
           openaiModelId: settings.openaiModel,
           openaiBaseUrl: settings.openaiBaseUrl,
+          ollamaModelId: settings.ollamaModel,
+          ollamaBaseUrl: settings.ollamaBaseUrl,
           systemPrompt: systemPromptMd,
         });
         
@@ -769,8 +833,7 @@ const AIChat: React.FC<AIChatProps> = ({ isOpen, onClose, settings, workspacePat
 
     // Reset cancellation flag for new request
     isCancelledRef.current = false;
-    setStreamingText('');
-    setStreamingThinking('');
+    setStreamingBlocks([]);
 
     // Parse @mentions from input
     const { cleanedText: textAfterMentions, mentionedStakeholders } = parseStakeholderContext(input);
@@ -1084,8 +1147,7 @@ You are NOT creating a template - you are using the template as a blueprint to w
     
     // Clear pending state
     setPendingToolCall(null);
-    setStreamingText('');
-    setStreamingThinking('');
+    setStreamingBlocks([]);
     setCurrentStreamId(null);
     
     // Reset loading state immediately
@@ -1108,8 +1170,7 @@ You are NOT creating a template - you are using the template as a blueprint to w
       
       // Clear all state - set to empty, then useEffect will add welcome message
       setPendingToolCall(null);
-      setStreamingText('');
-      setStreamingThinking('');
+      setStreamingBlocks([]);
       setCurrentStreamId(null);
       setInput('');
       
@@ -1176,19 +1237,52 @@ You are NOT creating a template - you are using the template as a blueprint to w
               </div>
             )}
             <div className="ai-message-content">
-              {msg.thinking && (
-                <ThinkingText thinking={msg.thinking} />
-              )}
-              <div className="ai-message-text">
-                {msg.role === 'assistant' ? (
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                ) : (
-                  msg.content
-                )}
-              </div>
-              
-              {msg.toolResult && (
-                <CollapsibleToolResult result={msg.toolResult} />
+              {/* If message has blocks, render them in sequence */}
+              {msg.blocks && msg.blocks.length > 0 ? (
+                <>
+                  {msg.blocks.map((block, idx) => (
+                    <div key={idx} className={`streaming-block streaming-block-${block.type}`}>
+                      {block.type === 'thinking' && (
+                        <ThinkingText thinking={block.content} />
+                      )}
+                      {block.type === 'tool_use' && (
+                        <div className="tool-use-block">
+                          <span className="tool-icon">🔧</span>
+                          <span className="tool-name">{block.toolName}</span>
+                          {block.toolInput && Object.keys(block.toolInput).length > 0 && (
+                            <span className="tool-args">({Object.entries(block.toolInput).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ')})</span>
+                          )}
+                        </div>
+                      )}
+                      {block.type === 'tool_result' && (
+                        <CollapsibleToolResult result={block.content} />
+                      )}
+                      {block.type === 'text' && (
+                        <div className="ai-message-text">
+                          <ReactMarkdown>{block.content}</ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                /* Fallback for old messages without blocks */
+                <>
+                  {msg.thinking && (
+                    <ThinkingText thinking={msg.thinking} />
+                  )}
+                  <div className="ai-message-text">
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                  
+                  {msg.toolResult && (
+                    <CollapsibleToolResult result={msg.toolResult} />
+                  )}
+                </>
               )}
 
               <div className="ai-message-time">
@@ -1198,21 +1292,37 @@ You are NOT creating a template - you are using the template as a blueprint to w
           </div>
         ))}
 
-        {/* Streaming message in progress */}
-        {(streamingText || streamingThinking) && (
+        {/* Streaming message in progress - show blocks in sequence */}
+        {streamingBlocks.length > 0 && (
           <div className="ai-message assistant">
             <div className="ai-message-avatar">
               <img src={aiAvatarIcon} alt="AI" />
             </div>
             <div className="ai-message-content">
-              {streamingThinking && (
-                <ThinkingText thinking={streamingThinking} />
-              )}
-              {streamingText && (
-                <div className="ai-message-text">
-                  <ReactMarkdown>{streamingText}</ReactMarkdown>
+              {streamingBlocks.map((block, idx) => (
+                <div key={idx} className={`streaming-block streaming-block-${block.type}`}>
+                  {block.type === 'thinking' && (
+                    <ThinkingText thinking={block.content} />
+                  )}
+                  {block.type === 'tool_use' && (
+                    <div className="tool-use-block">
+                      <span className="tool-icon">🔧</span>
+                      <span className="tool-name">{block.toolName}</span>
+                      {block.toolInput && Object.keys(block.toolInput).length > 0 && (
+                        <span className="tool-args">({Object.entries(block.toolInput).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ')})</span>
+                      )}
+                    </div>
+                  )}
+                  {block.type === 'tool_result' && (
+                    <CollapsibleToolResult result={block.content} />
+                  )}
+                  {block.type === 'text' && (
+                    <div className="ai-message-text">
+                      <ReactMarkdown>{block.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           </div>
         )}
@@ -1231,7 +1341,7 @@ You are NOT creating a template - you are using the template as a blueprint to w
           </div>
         )}
 
-        {isLoading && !pendingToolCall && !streamingText && !streamingThinking && (
+        {isLoading && !pendingToolCall && streamingBlocks.length === 0 && (
           <div className="ai-message assistant">
             <div className="ai-message-avatar"><img src={aiAvatarIcon} alt="AI" /></div>
             <div className="ai-message-content">

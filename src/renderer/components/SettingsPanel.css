@@ -226,3 +226,150 @@
   margin-top: 4px;
 }
 
+.settings-hint code {
+  background-color: #2d2d2d;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: #e0e0e0;
+}
+
+/* Model Selector Row (dropdown + button) */
+.model-selector-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.model-selector-row select {
+  flex: 1;
+}
+
+.model-selector-row .detect-btn {
+  white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* Ollama Note */
+.ollama-note {
+  background-color: #2a3a2a;
+  border-left-color: #4caf50;
+}
+
+.ollama-note strong {
+  color: #4caf50;
+}
+
+.ollama-note ol {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.ollama-note li {
+  margin-bottom: 4px;
+}
+
+.ollama-note code {
+  background-color: #1e1e1e;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  color: #e0e0e0;
+}
+
+.ollama-note a {
+  color: #4fc3f7;
+  text-decoration: none;
+}
+
+.ollama-note a:hover {
+  text-decoration: underline;
+}
+
+/* Ollama Install Section */
+.ollama-install-section {
+  margin: 16px 0;
+  padding: 16px;
+  background-color: #2a3a2a;
+  border-radius: 6px;
+  border: 1px solid #3a4a3a;
+}
+
+.ollama-buttons-row {
+  display: flex;
+  gap: 8px;
+}
+
+.install-btn {
+  flex: 1;
+  padding: 12px 20px !important;
+  background-color: #4caf50 !important;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+}
+
+.install-btn:hover:not(:disabled) {
+  background-color: #45a049 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.install-btn:disabled {
+  background-color: #3c5a3c !important;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.delete-model-btn {
+  flex: 1;
+  padding: 12px 20px !important;
+  background-color: #dc3545 !important;
+  color: white !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  transition: all 0.2s !important;
+}
+
+.delete-model-btn:hover:not(:disabled) {
+  background-color: #c82333 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.delete-model-btn:disabled {
+  background-color: #5a3030 !important;
+  color: #999 !important;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ollama-install-section .settings-hint {
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Pull Progress */
+.pull-progress {
+  margin-top: 12px;
+  padding: 10px;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+}
+
+.pull-progress-text {
+  color: #4caf50;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
