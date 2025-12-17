@@ -738,6 +738,74 @@ export class StrandsAgentService extends EventEmitter {
       return `${index + 1}. ${statusIcon[todo.status]} ${todo.content}`;
     }).join('\n');
   }
+
+  // Simple completion without tools - for simulator
+  async simpleCompletion(prompt: string): Promise<string> {
+    if (!this.config) {
+      throw new Error('Agent not initialized. Call initialize() first.');
+    }
+
+    let model;
+    
+    if (this.config.provider === 'openai') {
+      const OpenAIModelClass = await loadOpenAIModel();
+      if (!OpenAIModelClass) {
+        throw new Error('OpenAI model provider is not available.');
+      }
+      
+      const openaiConfig: any = {
+        apiKey: this.config.openaiApiKey,
+        modelId: this.config.openaiModelId || 'gpt-4o-mini',
+        maxTokens: 4096,
+      };
+      
+      if (this.config.openaiBaseUrl) {
+        openaiConfig.clientConfig = { baseURL: this.config.openaiBaseUrl };
+      }
+      
+      model = new OpenAIModelClass(openaiConfig);
+    } else if (this.config.provider === 'ollama') {
+      const OpenAIModelClass = await loadOpenAIModel();
+      if (!OpenAIModelClass) {
+        throw new Error('OpenAI model provider is not available.');
+      }
+
+      const ollamaBaseUrl = this.config.ollamaBaseUrl || 'http://localhost:11434';
+      const ollamaModelId = this.config.ollamaModelId || 'qwen3:4b';
+
+      model = new OpenAIModelClass({
+        apiKey: 'ollama',
+        modelId: ollamaModelId,
+        maxTokens: 4096,
+        clientConfig: { baseURL: `${ollamaBaseUrl}/v1` },
+      });
+    } else {
+      // Bedrock
+      model = new BedrockModel({
+        modelId: this.config.bedrockModelId || 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+        region: this.config.region,
+      });
+    }
+
+    // Create a simple agent without tools for completion
+    const simpleAgent = new Agent({
+      model,
+      systemPrompt: 'You are a helpful assistant. Respond only with valid JSON as requested.',
+      tools: [],
+      printer: false,
+    });
+
+    // Collect the response
+    let fullResponse = '';
+    for await (const event of simpleAgent.stream(prompt)) {
+      const ev = event as any;
+      if (ev.type === 'modelContentBlockDeltaEvent' && ev.delta?.type === 'textDelta' && ev.delta.text) {
+        fullResponse += ev.delta.text;
+      }
+    }
+
+    return fullResponse;
+  }
 }
 
 // Singleton instance

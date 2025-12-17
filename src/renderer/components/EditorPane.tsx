@@ -11,11 +11,16 @@ import { marked } from 'marked';
 
 // Import icons
 import welcomeIcon from '../assets/icons/weclome.svg';
+import simulateIcon from '../assets/icons/simulate.svg';
 
 const { ipcRenderer } = window.require('electron');
 const path = window.require('path');
 
-const EditorPane: React.FC = () => {
+interface EditorPaneProps {
+  onOpenSimulator?: () => void;
+}
+
+const EditorPane: React.FC<EditorPaneProps> = ({ onOpenSimulator }) => {
   const { currentFile, openFiles, setCurrentFile, closeFile, updateFileContent } = useAppContext();
   const [showPreview, setShowPreview] = useState(false);
   
@@ -25,6 +30,16 @@ const EditorPane: React.FC = () => {
 
   const isMarkdownFile = currentFile?.path.toLowerCase().endsWith('.md') || 
                          currentFile?.path.toLowerCase().endsWith('.prd');
+  
+  // Check if file is a PRD-like document (for simulation)
+  const isPrdFile = currentFile && (
+    currentFile.path.toLowerCase().endsWith('.prd') ||
+    currentFile.path.toLowerCase().endsWith('.md') ||
+    currentFile.path.toLowerCase().includes('prd') ||
+    currentFile.content?.toLowerCase().includes('product requirement') ||
+    currentFile.content?.toLowerCase().includes('## overview') ||
+    currentFile.content?.toLowerCase().includes('## problem')
+  );
 
   // Detect if file is a Kanban document by checking for [KANBAN] header
   const isKanbanDocument = currentFile?.content?.match(/^#\s*\[KANBAN\]/m) !== null;
@@ -235,6 +250,19 @@ const EditorPane: React.FC = () => {
               >
                 {isExporting ? '⏳ Exporting...' : '📄 Export PDF'}
               </button>
+              {isPrdFile && onOpenSimulator && (
+                <button
+                  className="simulate-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenSimulator();
+                  }}
+                  title="Simulate stakeholder review of this PRD"
+                >
+                  <img src={simulateIcon} alt="" className="simulate-icon" /> Simulate
+                </button>
+              )}
             </div>
           )}
         </div>

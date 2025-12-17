@@ -120,6 +120,32 @@ body {
   cursor: not-allowed;
 }
 
+.simulate-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+  font-weight: 500;
+}
+
+.simulate-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.simulate-btn .simulate-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 4px;
+  filter: brightness(0) invert(1);
+}
+
 .editor-tab {
   display: flex;
   align-items: center;

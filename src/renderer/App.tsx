@@ -13,6 +13,7 @@ import FileNameDialog from './components/FileNameDialog';
 import MCPPanel from './components/MCPPanel';
 import TerminalPanel from './components/TerminalPanel';
 import StakeholdersPanel from './components/StakeholdersPanel';
+import StakeholderSimulator from './components/StakeholderSimulator';
 import './styles/App.css';
 import { AppSettings, DEFAULT_SETTINGS } from '../shared/settings';
 import { Stakeholder } from '../shared/types';
@@ -34,6 +35,7 @@ const AppContent: React.FC = () => {
   const [isMCPPanelOpen, setIsMCPPanelOpen] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [isStakeholdersPanelOpen, setIsStakeholdersPanelOpen] = useState(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
   const [mcpStatus, setMcpStatus] = useState<'connected' | 'disconnected' | 'error' | 'loading'>('disconnected');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -510,7 +512,7 @@ const AppContent: React.FC = () => {
           />
           <Sidebar />
           <div className="main-content-area">
-            <EditorPane />
+            <EditorPane onOpenSimulator={() => setIsSimulatorOpen(true)} />
             <TerminalPanel 
               isOpen={isTerminalOpen}
               onClose={() => setIsTerminalOpen(false)}
@@ -580,6 +582,13 @@ const AppContent: React.FC = () => {
         isOpen={isStakeholdersPanelOpen}
         onClose={() => setIsStakeholdersPanelOpen(false)}
         onStakeholdersChange={setStakeholders}
+      />
+
+      <StakeholderSimulator
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+        prdContent={currentFile?.content || ''}
+        stakeholders={stakeholders}
       />
     </>
   );

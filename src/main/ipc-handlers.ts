@@ -589,6 +589,126 @@ export function setupIpcHandlers(mainWindow?: BrowserWindow) {
     }
   });
 
+  // ============================================
+  // STAKEHOLDER SIMULATOR
+  // ============================================
+  
+  // Simulate stakeholder review of a PRD using Strands Agent
+  ipcMain.handle('simulator:run', async (
+    event,
+    prdContent: string,
+    stakeholders: { id: string; name: string; role: string }[]
+  ) => {
+    try {
+      const { buildSimulationPrompt, getStakeholderPrompt } = await import('../shared/stakeholder-simulator');
+
+      const feedback: any[] = [];
+
+      for (let i = 0; i < stakeholders.length; i++) {
+        const stakeholder = stakeholders[i];
+
+        // Send progress update
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('simulator:progress', {
+            current: i + 1,
+            total: stakeholders.length,
+            stakeholder: stakeholder.name,
+            status: 'reviewing'
+          });
+        }
+
+        try {
+          const prompt = buildSimulationPrompt(stakeholder, prdContent);
+          
+          // Use Strands agent for consistent AI calls across all providers
+          const responseContent = await strandsAgent.simpleCompletion(prompt);
+
+          // Parse JSON response - try to extract JSON from response
+          let parsed;
+          try {
+            // Try direct parse first
+            parsed = JSON.parse(responseContent);
+          } catch {
+            // Try to find JSON in the response
+            const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsed = JSON.parse(jsonMatch[0]);
+              } catch {
+                parsed = null;
+              }
+            }
+          }
+
+          if (!parsed) {
+            parsed = {
+              blockers: [],
+              concerns: [`Could not parse response from ${stakeholder.name}`],
+              questions: [],
+              suggestions: [],
+              verdict: 'concerns'
+            };
+          }
+
+          // Get emoji for this role
+          const { emoji } = getStakeholderPrompt(stakeholder);
+
+          feedback.push({
+            stakeholderId: stakeholder.id,
+            stakeholderName: stakeholder.name,
+            stakeholderRole: stakeholder.role,
+            emoji,
+            blockers: parsed.blockers || [],
+            concerns: parsed.concerns || [],
+            questions: parsed.questions || [],
+            suggestions: parsed.suggestions || [],
+            verdict: parsed.verdict || 'concerns'
+          });
+
+        } catch (error: any) {
+          console.error(`Error simulating ${stakeholder.name}:`, error);
+          feedback.push({
+            stakeholderId: stakeholder.id,
+            stakeholderName: stakeholder.name,
+            stakeholderRole: stakeholder.role,
+            emoji: '❌',
+            blockers: [],
+            concerns: [`Simulation failed: ${error.message}`],
+            questions: [],
+            suggestions: [],
+            verdict: 'concerns'
+          });
+        }
+      }
+
+      // Calculate summary
+      const totalBlockers = feedback.reduce((sum, f) => sum + f.blockers.length, 0);
+      const totalConcerns = feedback.reduce((sum, f) => sum + f.concerns.length, 0);
+      const hasBlocker = feedback.some(f => f.verdict === 'block');
+
+      let riskLevel: 'low' | 'medium' | 'high' = 'low';
+      if (hasBlocker || totalBlockers > 0) riskLevel = 'high';
+      else if (totalConcerns > 3) riskLevel = 'medium';
+
+      return {
+        success: true,
+        result: {
+          feedback,
+          summary: {
+            totalBlockers,
+            totalConcerns,
+            readyForReview: totalBlockers === 0 && !hasBlocker,
+            riskLevel
+          }
+        }
+      };
+      
+    } catch (error: any) {
+      console.error('Error running simulation:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Save stakeholders to file
   ipcMain.handle('stakeholders:save', async (event, stakeholders: any[]) => {
     try {
