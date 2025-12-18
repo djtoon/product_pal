@@ -6,9 +6,9 @@
 
 **AI-powered document editor for Product Managers.** Create, edit, and manage product documentation with a powerful, modern interface and built-in AI assistant.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/danshamir/collie/releases)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/djtoon/product_pal/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/danshamir/collie/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](https://github.com/djtoon/product_pal/releases)
 
 ---
 
@@ -130,7 +130,7 @@ Full terminal access within the app:
 
 ### Download
 
-Download the latest release from the [Releases](https://github.com/danshamir/collie/releases) page:
+Download the latest release from the [Releases](https://github.com/djtoon/product_pal/releases) page:
 
 **Windows**
 - `Collie-0.1.0-Setup.exe` - Standard installation
@@ -144,7 +144,7 @@ Download the latest release from the [Releases](https://github.com/danshamir/col
 
 ```bash
 # Clone the repository
-git clone https://github.com/danshamir/collie.git
+git clone https://github.com/djtoon/product_pal.git
 cd collie
 
 # Install dependencies

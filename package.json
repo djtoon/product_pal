@@ -9,12 +9,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danshamir/collie.git"
+    "url": "https://github.com/djtoon/product_pal.git"
   },
   "bugs": {
-    "url": "https://github.com/danshamir/collie/issues"
+    "url": "https://github.com/djtoon/product_pal/issues"
   },
-  "homepage": "https://github.com/danshamir/collie#readme",
+  "homepage": "https://github.com/djtoon/product_pal#readme",
   "scripts": {
     "start": "webpack --config webpack.config.js && electron .",
     "dev": "webpack --config webpack.config.js --mode development --watch",
